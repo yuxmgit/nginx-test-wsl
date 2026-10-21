@@ -1,0 +1,205 @@
+#!/bin/bash
+#
+# CI/CD 无人值守部署脚本（供 Jenkins 调用）
+#
+# 与 deploy.sh 的区别：
+#   deploy.sh   面向人工，交互式提问、首次安装 nginx/systemd
+#   ci-deploy.sh 面向 CI，零交互、幂等、失败自动回滚
+#
+# 用法：
+#   sudo bash deploy/ci-deploy.sh <源码目录> [目标目录]
+#
+# 示例：
+#   sudo bash deploy/ci-deploy.sh /var/lib/jenkins/workspace/nginx-deploy /home/yuxiangming/nginx-project
+#
+# 环境变量（可选）：
+#   SKIP_BACKUP=1     跳过备份（首次部署时用）
+#   SKIP_RESTART=1    只同步文件，不重启服务
+#   HEALTH_RETRIES=10 健康检查重试次数（默认 10，每次间隔 2 秒）
+#
+set -euo pipefail
+
+# ============ 参数区 ============
+SRC_DIR="${1:-}"
+DEST_DIR="${2:-$HOME/nginx-project}"
+
+if [ -z "$SRC_DIR" ]; then
+    echo "[错误] 必须传入源码目录。用法: ci-deploy.sh <源码目录> [目标目录]" >&2
+    exit 1
+fi
+
+SRC_DIR="$(cd "$SRC_DIR" && pwd)"
+DEST_DIR="$(cd "$DEST_DIR" 2>/dev/null && pwd || echo "$DEST_DIR")"
+
+SKIP_BACKUP="${SKIP_BACKUP:-0}"
+SKIP_RESTART="${SKIP_RESTART:-0}"
+HEALTH_RETRIES="${HEALTH_RETRIES:-10}"
+RUN_USER="${RUN_USER:-$(whoami)}"
+NODE_BIN="$(command -v node || echo /usr/bin/node)"
+BACKUP_ROOT="${DEST_DIR%/}/../.deploy-backups"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+BACKUP_DIR="$BACKUP_ROOT/$STAMP"
+
+log()  { echo -e "\033[1;36m[deploy]\033[0m $*"; }
+ok()   { echo -e "\033[1;32m[ok]\033[0m $*"; }
+warn() { echo -e "\033[1;33m[warn]\033[0m $*"; }
+die()  { echo -e "\033[1;31m[fail]\033[0m $*" >&2; exit 1; }
+
+echo "=================================================="
+echo " CI 部署开始   $(date '+%Y-%m-%d %H:%M:%S')"
+echo "=================================================="
+echo " 源码目录 : $SRC_DIR"
+echo " 部署目标 : $DEST_DIR"
+echo " 运行用户 : $RUN_USER"
+echo " Node     : $NODE_BIN ($($NODE_BIN -v 2>/dev/null || echo '未找到'))"
+echo "=================================================="
+
+# ---------- 0. 前置校验 ----------
+[ -d "$SRC_DIR/backend" ]  || die "源码目录缺少 backend/：$SRC_DIR"
+[ -d "$SRC_DIR/frontend" ] || die "源码目录缺少 frontend/：$SRC_DIR"
+[ -f "$SRC_DIR/backend/api-server1.js" ] || die "缺少 backend/api-server1.js"
+[ -f "$SRC_DIR/backend/api-server2.js" ] || die "缺少 backend/api-server2.js"
+
+command -v node >/dev/null || die "未找到 node，请确认 Jenkins 环境的 PATH（$NODE_BIN）"
+command -v rsync >/dev/null || die "未安装 rsync，请执行: sudo apt install -y rsync"
+
+# Jenkins 用户名通常是 jenkins，HOME 指向 /var/lib/jenkins
+if [ ! -w "$DEST_DIR" ] && [ ! -w "$(dirname "$DEST_DIR")" ]; then
+    warn "当前用户对 $DEST_DIR 无写权限，将尝试提权执行"
+    SUDO="sudo -n"
+    $SUDO true 2>/dev/null || die "免密 sudo 未配置。请按教程第 7 章配置 /etc/sudoers.d/jenkins"
+else
+    SUDO=""
+fi
+
+# ---------- 1. 备份当前版本（用于回滚）----------
+if [ "$SKIP_BACKUP" = "1" ] || [ ! -d "$DEST_DIR/backend" ]; then
+    log "步骤 1/5  跳过备份（首次部署或 SKIP_BACKUP=1）"
+else
+    log "步骤 1/5  备份当前版本到 $BACKUP_DIR"
+    mkdir -p "$BACKUP_DIR"
+    $SUDO cp -a "$DEST_DIR/backend"  "$BACKUP_DIR/" 2>/dev/null || true
+    $SUDO cp -a "$DEST_DIR/frontend" "$BACKUP_DIR/" 2>/dev/null || true
+    # 只保留最近 5 份
+    $SUDO rm -rf "$BACKUP_ROOT"/* 2>/dev/null || true
+    ls -1dt "$BACKUP_ROOT"/* 2>/dev/null | tail -n +6 | xargs -r $SUDO rm -rf 2>/dev/null || true
+    ok "备份完成"
+fi
+
+# ---------- 2. 同步代码 ----------
+log "步骤 2/5  同步 backend/ frontend/ 到 $DEST_DIR"
+$SUDO mkdir -p "$DEST_DIR/logs"
+$SUDO rsync -a --delete \
+    --exclude 'logs/' \
+    --exclude '*.log' \
+    --exclude '.git/' \
+    "$SRC_DIR/backend/"  "$DEST_DIR/backend/"
+$SUDO rsync -a --delete \
+    --exclude '.git/' \
+    "$SRC_DIR/frontend/" "$DEST_DIR/frontend/"
+$SUDO chmod +r "$DEST_DIR"/backend/*.js
+$SUDO chmod 755 "$DEST_DIR"
+ok "代码同步完成"
+
+# ---------- 3. 检查 systemd unit 的 node 路径是否仍有效 ----------
+log "步骤 3/5  校验 systemd 服务配置"
+for N in 1 2; do
+    UNIT="/etc/systemd/system/api-server$N.service"
+    if [ ! -f "$UNIT" ]; then
+        warn "未找到 $UNIT，将自动创建"
+        NODE_ABS="$(readlink -f "$NODE_BIN")"
+        $SUDO tee "$UNIT" > /dev/null << EOF
+[Unit]
+Description=Backend API Server $N
+After=network.target
+
+[Service]
+Type=simple
+User=$RUN_USER
+WorkingDirectory=$DEST_DIR/backend
+ExecStart=$NODE_ABS api-server$N.js
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        continue
+    fi
+
+    UNIT_NODE="$($SUDO grep -oP '(?<=^ExecStart=)\S+' "$UNIT" | head -1 || true)"
+    if [ -n "$UNIT_NODE" ] && [ ! -x "$UNIT_NODE" ]; then
+        warn "$UNIT 里的 node 路径已失效：$UNIT_NODE"
+        NEW_NODE="$(readlink -f "$NODE_BIN")"
+        $SUDO sed -i "s|^ExecStart=.*|ExecStart=$NEW_NODE api-server$N.js|" "$UNIT"
+        ok "已更新为 $NEW_NODE"
+    else
+        echo "    api-server$N.service  配置正常"
+    fi
+done
+$SUDO systemctl daemon-reload
+
+# ---------- 4. 重启服务 ----------
+if [ "$SKIP_RESTART" = "1" ]; then
+    log "步骤 4/5  跳过服务重启（SKIP_RESTART=1）"
+else
+    log "步骤 4/5  重启后端并重载 Nginx"
+    $SUDO systemctl restart api-server1 api-server2
+    sleep 2
+    for N in 1 2; do
+        if $SUDO systemctl is-active --quiet "api-server$N"; then
+            ok "api-server$N 运行中"
+        else
+            warn "api-server$N 未运行，日志："
+            $SUDO journalctl -u "api-server$N" --no-pager --lines=20 || true
+        fi
+    done
+
+    if $SUDO nginx -t; then
+        $SUDO systemctl reload nginx || $SUDO systemctl restart nginx
+        ok "Nginx 已重载"
+    else
+        die "Nginx 配置语法错误，未重载"
+    fi
+fi
+
+# ---------- 5. 健康检查（失败自动回滚）----------
+log "步骤 5/5  健康检查"
+PASS=0
+for i in $(seq 1 "$HEALTH_RETRIES"); do
+    C1=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://127.0.0.1:4001/api/user || echo 000)
+    C2=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://127.0.0.1:4002/api/user || echo 000)
+    CN=$(curl -s -o /dev/null -w '%{http_code}' --max-time 3 http://127.0.0.1/api/user || echo 000)
+    echo "    第 $i 次 -> 4001:$C1  4002:$C2  nginx:$CN"
+    if [ "$C1" = "200" ] && [ "$C2" = "200" ] && [ "$CN" = "200" ]; then
+        PASS=1
+        break
+    fi
+    sleep 2
+done
+
+if [ "$PASS" != "1" ]; then
+    echo ""
+    warn "健康检查未通过，尝试回滚到备份版本"
+    if [ -d "$BACKUP_DIR/backend" ]; then
+        $SUDO rsync -a --delete "$BACKUP_DIR/backend/"  "$DEST_DIR/backend/"
+        $SUDO rsync -a --delete "$BACKUP_DIR/frontend/" "$DEST_DIR/frontend/"
+        $SUDO systemctl restart api-server1 api-server2 || true
+        $SUDO systemctl reload nginx || true
+        echo "已回滚到 $BACKUP_DIR"
+    else
+        warn "没有可用备份，跳过回滚"
+    fi
+    echo "--- nginx 错误日志 ---"
+    $SUDO tail -n 30 /var/log/nginx/error.log 2>/dev/null || true
+    die "部署失败（健康检查未通过）"
+fi
+
+echo ""
+echo "=================================================="
+echo -e "\033[1;32m 部署成功\033[0m   $(date '+%Y-%m-%d %H:%M:%S')"
+echo "=================================================="
+curl -s --max-time 5 http://127.0.0.1/api/user; echo ""
+echo "备份位置: $BACKUP_DIR"

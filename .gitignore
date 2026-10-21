@@ -1,0 +1,52 @@
+# ===== 依赖 =====
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json.bak
+
+# ===== 日志与运行时 =====
+logs/
+*.log
+debug.log
+npm-debug.log*
+.pid
+*.pid
+
+# ===== Nginx 源码 / 二进制（体积大，且不属于业务代码）=====
+nginx-1.27.2/
+nginx/
+nginx.zip
+*.exe
+*.zip
+*.tar.gz
+nginx.conf.local
+
+# ===== 密钥与本地环境（绝对不要提交）=====
+.env
+.env.*
+*.pem
+*.key
+*.p12
+id_rsa*
+.jenkins/
+secrets/
+
+# ===== 备份 / 临时 =====
+backup/
+backups/
+tmp/
+.temp/
+*.bak
+*.swp
+
+# ===== 编辑器 =====
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== 系统 =====
+*.sys
+~$*

@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金风科技（002202.SZ）2026 年三季报前瞻</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f5f6f8;
+  color: #1f2328;
+  line-height: 1.7;
+  padding: 0 0 60px;
+}
+.wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px; }
+header {
+  background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+  border-bottom: 3px solid #1f4e79;
+  padding: 34px 0 26px;
+  margin-bottom: 26px;
+}
+.tagline { font-size: 13px; color: #6b7280; letter-spacing: 1px; margin-bottom: 8px; }
+h1 { font-size: 28px; color: #1f4e79; font-weight: 700; letter-spacing: -0.5px; }
+.sub { font-size: 14px; color: #57606a; margin-top: 8px; }
+.src-note { font-size: 12px; color: #8b949e; margin-top: 12px; }
+
+h2 {
+  font-size: 19px; color: #1f4e79; margin: 34px 0 14px;
+  padding-left: 11px; border-left: 4px solid #1f4e79; font-weight: 700;
+}
+h3 { font-size: 15.5px; color: #243b53; margin: 20px 0 10px; font-weight: 650; }
+p { font-size: 14.5px; margin-bottom: 12px; color: #32383f; }
+
+.card {
+  background: #fff; border: 1px solid #e3e6ea; border-radius: 10px;
+  padding: 20px 22px; margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(27,31,36,0.05);
+}
+.grid { display: grid; gap: 14px; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+.g2 { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 820px) { .g4, .g3, .g2 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .g4, .g3, .g2 { grid-template-columns: 1fr; } }
+
+.kpi { background: #fff; border: 1px solid #e3e6ea; border-radius: 10px; padding: 16px 18px; }
+.kpi .lab { font-size: 12.5px; color: #6b7280; margin-bottom: 6px; }
+.kpi .val { font-size: 25px; font-weight: 700; color: #1f2328; letter-spacing: -0.5px; }
+.kpi .val small { font-size: 14px; font-weight: 600; color: #57606a; }
+.kpi .note { font-size: 11.5px; color: #8b949e; margin-top: 5px; }
+.up { color: #d1242f !important; }   /* A股 红涨 */
+.down { color: #1a7f37 !important; } /* A股 绿跌 */
+
+.concl {
+  background: #f7f9fb; border: 1px solid #ccd7e2; border-left: 5px solid #1f4e79;
+  border-radius: 8px; padding: 20px 22px; margin-bottom: 20px;
+}
+.concl .hd { font-size: 13px; color: #1f4e79; font-weight: 700; letter-spacing: 1px; margin-bottom: 10px; }
+.concl li { font-size: 14.5px; margin-bottom: 9px; list-style: none; padding-left: 16px; position: relative; }
+.concl li:before { content: ""; position: absolute; left: 0; top: 9px; width: 6px; height: 6px; border-radius: 50%; background: #1f4e79; }
+.concl li b { color: #0d3d63; }
+
+.warn {
+  background: #fff8f6; border: 1px solid #ffd4cc; border-left: 5px solid #d1242f;
+  border-radius: 8px; padding: 18px 22px; margin-bottom: 20px;
+}
+.warn .hd { font-size: 13.5px; color: #d1242f; font-weight: 700; margin-bottom: 8px; }
+.warn p { font-size: 14px; margin-bottom: 8px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 12px 0 6px; background: #fff; }
+th, td { border: 1px solid #e3e6ea; padding: 9px 11px; text-align: left; }
+th { background: #eef2f6; color: #243b53; font-weight: 650; font-size: 13px; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl-wrap { background: #fff; border-radius: 10px; padding: 16px 18px; border: 1px solid #e3e6ea; margin-bottom: 16px; overflow-x: auto; }
+.cap { font-size: 12px; color: #8b949e; margin-top: 8px; }
+
+.chart { width: 100%; height: 380px; }
+.chart-box { background: #fff; border: 1px solid #e3e6ea; border-radius: 10px; padding: 16px 18px 10px; margin-bottom: 16px; }
+.chart-title { font-size: 14.5px; font-weight: 650; color: #243b53; margin-bottom: 2px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.tab {
+  font-size: 12px; padding: 4px 12px; border-radius: 5px; cursor: pointer;
+  border: 1px solid #d0d7de; background: #f6f8fa; color: #57606a; user-select: none;
+}
+.tab.on { background: #1f4e79; color: #fff; border-color: #1f4e79; }
+
+.chk { list-style: none; }
+.chk li { padding: 11px 0 11px 30px; position: relative; border-bottom: 1px dashed #e8ebef; font-size: 14px; }
+.chk li:last-child { border-bottom: none; }
+.chk li:before {
+  content: ""; position: absolute; left: 8px; top: 18px;
+  width: 7px; height: 7px; background: #1f4e79; border-radius: 2px;
+}
+.chk b { color: #0d3d63; }
+
+footer {
+  margin-top: 34px; padding: 18px 20px; background: #fff;
+  border: 1px solid #e3e6ea; border-radius: 8px; font-size: 12.5px; color: #6b7280;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="tagline">财报前瞻 · EARNINGS PREVIEW</div>
+    <h1>金风科技（002202.SZ / 02208.HK）2026 年三季报前瞻</h1>
+    <div class="sub">
+      披露时点：2026-10-23 董事会审议 · 2026-10-24 A 股预约披露　|　报告撰写日：2026-10-14　|　现价：15.51 元（2026-10-14 收盘，跌 2.27%）
+    </div>
+    <div class="src-note">
+      数据来源：港交所公告（2026-10-09）、公司 2026 年半年度报告、Wind 一致预期（36 家机构，截至 2026-10-14）、
+      申万宏源《电新行业 2026 年第三季报业绩前瞻》（2026-10-09，需核实原文）、各券商个股研报
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ============ 30秒结论 ============ -->
+<div class="concl">
+  <div class="hd">核心判断</div>
+  <ul>
+    <li><b>三季报大概率"数字中性偏弱、结构改善"</b>。卖方行业前瞻（申万宏源，2026-10-09）预计 3Q26 单季归母净利润 8–10 亿元，<b>同比 -27%~-9%</b>——但这是 2025Q3 高基数（10.96 亿元，同比 +170.6%）造成的，单季同比转负≠基本面恶化。</li>
+    <li><b>真正的预期差不在 Q3 数字，而在一致预期的 Q4 隐含要求</b>。Wind 一致预期 2026 全年归母 43.05 亿元，扣除前三季度后，<b>隐含 Q4 单季需做到约 15 亿元</b>，而 2025Q4 实际仅 1.90 亿元、2024Q4 仅 0.68 亿元。Q4 的跳升假设是全篇最脆弱的一环。</li>
+    <li><b>单季同比下降其实是"被动错觉"</b>。2025Q3 的 10.96 亿元本身建立在 2024Q3 仅 4.05 亿元的极低基数上，是被低基数放大的虚高数字。用两年复合增速看，2026Q3 的同比降幅远小于表观降幅。</li>
+    <li><b>当前股价隐含的预期温度偏冷，与卖方一致预期明显背离</b>。机构综合目标价 22.81 元（较现价 +43.7%），但近 20 日 -12.6%、近 60 日 -18.2%、年初至今 -23.2%，主动偏股基金持股比例降至 0.36%（环比 -0.19pct，基金数 23→8 家），近 5 日主力净流出约 4.97 亿元。<b>研报在加仓，资金在撤退</b>——这是当前最值得注意的价差。</li>
+    <li><b>我的 Q3 单季基准预测 9.5 亿元</b>（区间 8–11 亿），对应前三季度累计约 28.1 亿元、同比约 +8.6%，毛利率与海外占比是判断"结构是否真在改善"的两个关键验证点。</li>
+  </ul>
+</div>
+
+<!-- ============ 数据陷阱 ============ -->
+<div class="warn">
+  <div class="hd">⚠ 先澄清一个正在流传的数据误读</div>
+  <p>近期多篇自媒体文章（如今日头条 9 月末稿件）称"<b>2026 年第三季度金风科技归母净利润 10.97 亿元，同比暴增 170.64%</b>"，并据此推算全年业绩。<b>该数字有误</b>——10.97 亿元 / +170.6% 是 <b>2025 年第三季度</b>的实际业绩（2025Q3 单季营收 196.1 亿元、归母 10.96 亿元；2025 前三季度累计营收 481.47 亿元、累计归母 25.84 亿元，同比 +44.21%，见公司 2025 年三季报及华泰证券同期点评）。</p>
+  <p>验证：2025Q3 单季归母 10.96 亿元 ÷ 2024Q3 单季 4.05 亿元 − 1 ≈ +171%，与"170.64%"完全吻合，可确认其归属年份。<b>2026 年三季报尚未披露，公司也未发布业绩预告，任何"Q3 已实现 X 亿"的说法在 10 月 24 日前均不成立。</b></p>
+</div>
+
+<!-- ============ 时点 ============ -->
+<h2>一、时点确认：目前无任何官方业绩数据</h2>
+<div class="grid g3">
+  <div class="kpi">
+    <div class="lab">董事会审议日</div>
+    <div class="val">10-23 <small>周五</small></div>
+    <div class="note">港交所公告 2026-10-09 披露</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">A 股三季报预约披露</div>
+    <div class="val">10-24 <small>周六</small></div>
+    <div class="note">深交所预约披露日</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">距报告日</div>
+    <div class="val">10 天</div>
+    <div class="note">截至 2026-10-14</div>
+  </div>
+</div>
+<div class="tbl-wrap" style="margin-top:14px">
+  <h3 style="margin-top:0">结论：本篇全部为市场预期，不是公司数据</h3>
+  <p style="margin-bottom:0">A 股主板对三季报<b>无强制业绩预告义务</b>（仅在预计净利润为负、大幅变动等触发条件下要求），公司截至 10 月 14 日<b>未发布 2026 年三季度业绩预告或快报</b>。因此下文所有数字分为两类并已分别标注：<b>① 已披露实际值</b>（源自公司定期报告）；<b>② 卖方测算/一致预期</b>（非公司数据，仅代表机构观点）。</p>
+</div>
+
+<!-- ============ 市场预期基线 ============ -->
+<h2>二、市场预期基线</h2>
+
+<div class="tbl-wrap">
+  <h3 style="margin-top:0">① 已披露实际值（一手来源：公司定期报告）</h3>
+  <table>
+    <thead>
+      <tr><th>指标</th><th class="num">2025Q1</th><th class="num">2025Q2</th><th class="num">2025Q3</th><th class="num">2025Q4</th><th class="num">2026Q1</th><th class="num">2026Q2</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>单季营业收入（亿元）</td>
+        <td class="num">94.72</td><td class="num">190.65</td><td class="num">196.10</td><td class="num">248.76</td>
+        <td class="num">154.85</td><td class="num">182.54</td>
+      </tr>
+      <tr>
+        <td>单季归母净利润（亿元）</td>
+        <td class="num">5.68</td><td class="num">9.20</td><td class="num">10.96</td><td class="num">1.90</td>
+        <td class="num">9.07</td><td class="num">9.48</td>
+      </tr>
+      <tr>
+        <td>归母净利润同比</td>
+        <td class="num up">+70.8%</td><td class="num up">+27.4%</td><td class="num up">+170.6%</td><td class="num">—</td>
+        <td class="num up">+59.6%</td><td class="num up">+3.0%</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="cap">
+    来源：公司 2025 年各季度报告、2026 年一季报与半年度报告（单季值由累计值差分计算得出）。
+    2026H1 累计：营收 337.39 亿元（+18.23%）、归母 18.55 亿元（+24.67%）、扣非归母 20.22 亿元（+48%）——
+    <b style="color:#1a7f37">扣非增速（+48%）显著高于归母增速（+24.7%），说明 H1 利润增长主要来自主业而非非经常性损益</b>，这是一个正面的质量信号。
+    2025Q3 数据与上文"数据误读"章节相互印证。
+  </div>
+</div>
+
+<div class="chart-box">
+  <div class="chart-title">单季营业收入与单季归母净利润：2025Q3 的"利润高点"是低基数造出来的</div>
+  <div class="tabs">
+    <div class="tab on" data-t="chart1-c" data-g="chart1">图</div>
+    <div class="tab" data-t="chart1-t" data-g="chart1">表</div>
+  </div>
+  <div id="chart1-c" class="chart"></div>
+  <div id="chart1-t" style="display:none">
+    <table>
+      <thead><tr><th>季度</th><th class="num">单季营收（亿元）</th><th class="num">单季归母净利润（亿元）</th><th class="num">归母同比</th></tr></thead>
+      <tbody>
+        <tr><td>2025Q1</td><td class="num">94.72</td><td class="num">5.68</td><td class="num up">+70.8%</td></tr>
+        <tr><td>2025Q2</td><td class="num">190.65</td><td class="num">9.20</td><td class="num up">+27.4%</td></tr>
+        <tr><td>2025Q3</td><td class="num">196.10</td><td class="num">10.96</td><td class="num up">+170.6%</td></tr>
+        <tr><td>2025Q4</td><td class="num">248.76</td><td class="num">1.90</td><td class="num">—</td></tr>
+        <tr><td>2026Q1</td><td class="num">154.85</td><td class="num">9.07</td><td class="num up">+59.6%</td></tr>
+        <tr><td>2026Q2</td><td class="num">182.54</td><td class="num">9.48</td><td class="num up">+3.0%</td></tr>
+        <tr><td><b>2026Q3E（本报告预测）</b></td><td class="num"><b>≈205</b></td><td class="num"><b>≈9.5</b></td><td class="num down"><b>≈-13%</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cap">来源：公司定期报告（2025Q1–2026Q2 为实际值）；2026Q3E 为本报告基于申万宏源行业前瞻及行业装机数据测算的预测值，<b>非公司数据</b>。图 / 表可切换。</div>
+</div>
+
+<div class="tbl-wrap">
+  <h3 style="margin-top:0">② 市场一致预期与卖方测算（非公司数据）</h3>
+  <table>
+    <thead>
+      <tr><th>口径</th><th class="num">数值</th><th>来源与时点</th><th>说明</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>3Q26 单季归母净利润</b></td>
+        <td class="num"><b>8 – 10 亿元</b></td>
+        <td>申万宏源《电新行业 2026 年三季报业绩前瞻》2026-10-09</td>
+        <td>同比 -27% ~ -9%，主因 2025Q3 高基数；报告同时判断 Q3 陆风板块业绩环比有所修复。<span style="color:#8b949e">（研报原文需核实）</span></td>
+      </tr>
+      <tr>
+        <td>3Q26 单季营业收入</td>
+        <td class="num">≈ 205 亿元（本报告预测）</td>
+        <td>本报告基于行业装机节奏测算</td>
+        <td>同比约 +5%；2026 年 1–8 月风电新增装机 53.26GW、同比 -9.84%，但 7–8 月新增 14.64GW、同比 +124.88%，交付确认集中在 Q3 末</td>
+      </tr>
+      <tr>
+        <td>2026 前三季度累计归母</td>
+        <td class="num">≈ 28.1 亿元（本报告预测）</td>
+        <td>18.55（H1 实际）+ 9.5（Q3 预测）</td>
+        <td>同比约 +8.6%（2025 前三季度 25.84 亿元）</td>
+      </tr>
+      <tr>
+        <td>2026 全年归母（一致预期）</td>
+        <td class="num">43.05 亿元　<span class="up">+55.2%</span></td>
+        <td>Wind 一致预期，36 家机构，截至 2026-10-14</td>
+        <td>对应营业收入 904.74 亿元（+23.9%）、EPS 1.02 元</td>
+      </tr>
+      <tr>
+        <td>2027 全年归母（一致预期）</td>
+        <td class="num">54.81 亿元　<span class="up">+27.3%</span></td>
+        <td>Wind 一致预期，26 家机构</td>
+        <td>EPS 1.30 元</td>
+      </tr>
+      <tr>
+        <td>机构综合目标价（A 股）</td>
+        <td class="num">22.81 元　<span class="up">+43.7%</span></td>
+        <td>Wind 机构综合，截至 2026-10-14</td>
+        <td>近 6 个月评级：2026年8 月 9 家、9 月 2 家，<b>100% 买入/增持，0 家持有或减持</b></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="cap">
+    数据时点：2026-10-14。研报类数据为非一手来源，标注机构与发布时间，引用时请核实原文。
+  </div>
+</div>
+
+<div class="chart-box">
+  <div class="chart-title">卖方 2026 年归母净利润预测：区间 37.5–53.6 亿元，分歧不小</div>
+  <div class="chart" id="chart2"></div>
+  <div class="cap">
+    来源：各券商个股研报盈利预测（统计截至 2026-10；国金 2026-08-26、财信 2026-08-26、UBS 2026-08-26、华泰 2026-08-27、申万宏源 2026-08-27、中信 2026-08-27、东吴/光大/广发 2026-08-28、国信/平安 2026-08-26、长江 2026-09-21、中信建投 2026-09-01、国盛 2026-05-05）。
+    共 14 家：均值 43.6 亿元、中位数 42.6 亿元、最高国金证券 53.56 亿元、最低中信证券 37.46 亿元。
+    <b>研报为非一手来源，需核实原文。</b>
+  </div>
+</div>
+
+<!-- ============ 预期差的真正位置 ============ -->
+<h2>三、预期差在哪里：一致预期的 Q4 隐含跳升</h2>
+<p>如果三季报只是落在申万宏源给的 8–10 亿元区间内，市场大概率视为"符合预期"。真正需要重新审视的，是 Wind 一致预期 43.05 亿元全年目标所隐含的 Q4 假设。</p>
+
+<div class="chart-box">
+  <div class="chart-title">一致预期的"隐藏条件"：Q4 单季需从 1.90 亿元跳到约 15 亿元</div>
+  <div class="chart" id="chart3"></div>
+  <div class="cap">
+    测算：Wind 一致预期 2026 全年归母 43.05 亿元 − 本报告预测前三季度累计 28.1 亿元 = 隐含 Q4 约 15.0 亿元。
+    对比基数：2025Q4 实际 1.90 亿元、2024Q4 实际 0.68 亿元。
+    来源：Wind 一致预期（2026-10-14）+ 公司 2024/2025 年报（Q4 单季由年度累计值差分计算）。
+    <b>2024Q4 与 2025Q4 连续两年出现"Q4 断崖"，说明年末存在系统性费用计提或减值；这一历史模式是否延续，是全年目标能否落地的核心变量。</b>
+  </div>
+</div>
+
+<div class="concl">
+  <div class="hd">这意味着什么</div>
+  <ul>
+    <li><b>三季报"好看"不构成强催化。</b>Q3 落在 8–10 亿元，只是确认了行业交付节奏，不会自动推高全年 43 亿元的假设。</li>
+    <li><b>三季报"难看"也不必然导致大跌。</b>如果 Q3 落在区间下沿但毛利率环比继续抬升、经营现金流净流出继续收窄，市场更可能把它读作"结构改善被基数掩盖"，而非"盈利恶化"。</li>
+    <li><b>真正的雷点在 Q4 与减值。</b>连续两年 Q4 利润断崖是一个明确的模式信号。如果三季报出现减值计提苗头、或合同负债/存货显示 Q4 交付压力加大，全年一致预期的下修风险会显著上升。</li>
+  </ul>
+</div>
+
+<!-- ============ 验证点 ============ -->
+<h2>四、本次三季报最关键的 5 个验证点</h2>
+<div class="tbl-wrap">
+  <ul class="chk">
+    <li><b>① 单季综合毛利率的环比方向（最关键）。</b>H1 综合毛利率 16.76%，其中风机及零部件毛利率 11.62%、同比提升 3.65 个百分点。若 Q3 单季毛利率<b>继续环比抬升</b>，则"风机盈利修复"叙事成立，即使净利同比转负也是良性的；若毛利率回落，则单季利润下滑就是真实的盈利恶化。</li>
+    <li><b>② 经营活动现金流净流出的收窄幅度。</b>H1 经营现金流净额 −15.78 亿元（上年同期 −29.49 亿元），<b>仍为净流出</b>。风电整机属垫资行业，现金流不转正将持续压制估值修复空间。需核对前三季度累计值是否进一步收窄。</li>
+    <li><b>③ 海外收入占比与海外毛利率。</b>H1 国际业务收入 108.87 亿元、同比 +29.94%，占比提升至 32.27%，毛利率 17.79%、显著高于国内。占比是否继续上行、海外毛利率能否维持，是"两海战略"是否真正转化为利润的核心证明。</li>
+    <li><b>④ 绿色甲醇业务的收入确认节奏。</b>兴安盟一期 25 万吨生产线已打通，9 月 10 日首批商业化发运，<b>4Q26 开展客户交付</b>，累计在手订单超 75 万吨。若 Q3 已产生确认收入，将为 Q4 的 15 亿元隐含假设提供支撑；若 Q3 仍零贡献，则 Q4 一次性确认的业绩波动性很大。</li>
+    <li><b>⑤ 合同负债与存货的环比变化。</b>2026Q2 末存货 200.08 亿元（同比 +5.7%、环比 +16.8%），合同负债 189.15 亿元（同比 -6.6%）。合同负债下滑叠加存货上升，提示预收款转化节奏放缓，是交付节奏的领先指标。</li>
+  </ul>
+</div>
+
+<!-- ============ 情景推演 ============ -->
+<h2>五、情景推演：把"财报结果"和"股价反应"拆开</h2>
+<div class="tbl-wrap">
+  <table>
+    <thead>
+      <tr><th>情景</th><th class="num">Q3 单季归母</th><th class="num">前三季累计</th><th>财报信号</th><th>可能的股价反应</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>A. 符合预期</b><br>落 8–10 亿区间</td>
+        <td class="num">8–10 亿</td>
+        <td class="num">26.5–28.5 亿</td>
+        <td>毛利率环比续升、现金流继续收窄，但单季同比为负</td>
+        <td>大概率<b>中性偏震荡</b>。市场关注焦点会立即转向 Q4 能否兑现 15 亿元的隐含假设，波动加剧</td>
+      </tr>
+      <tr>
+        <td><b>B. 超预期</b><br>≥ 11 亿或毛利率大幅改善</td>
+        <td class="num">11–13 亿</td>
+        <td class="num">29.5–31.5 亿</td>
+        <td>单季同比转正 + 毛利率 + 现金流 + 海外占比四者同时验证，绿色甲醇开始贡献</td>
+        <td><b>正向</b>。当前 PE(TTM) 20.85x 相对可比公司 2026 年 Wind 一致均值 15.45x 的溢价有收敛空间，估值弹性较大</td>
+      </tr>
+      <tr>
+        <td><b>C. 表面达标但指引偏弱</b></td>
+        <td class="num">8–9 亿</td>
+        <td class="num">26.5–27.5 亿</td>
+        <td>数字达标但毛利率回落、现金流净流出扩大，或计提减值苗头</td>
+        <td><b>杀估值风险</b>。全年 43 亿元一致预期面临下修，这是四种情景中对股价最不利的组合</td>
+      </tr>
+      <tr>
+        <td><b>D. 不及预期</b><br>&lt; 8 亿</td>
+        <td class="num">&lt; 8 亿</td>
+        <td class="num">&lt; 26.5 亿</td>
+        <td>交付确认显著推迟 + 毛利率与现金流双恶化</td>
+        <td><b>跌幅大小取决于是否伴随减持/机构下调评级</b>。需同步跟踪美银 H 股持股变化（10 月初已由 5.43% 降至 3.24%）</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="cap">
+    本表为本报告基于公开数据的推演框架，<b>不是股价点位预测，也不构成投资建议</b>。
+    关键认知：<b>"略超预期但股价不涨"完全可能</b>——因为 Q3 数字本身已在 8–10 亿元区间被卖方明牌，真正的定价权在 Q4 与全年 43 亿元的假设能否被证实或证伪。
+  </div>
+</div>
+
+<!-- ============ 预期温度 ============ -->
+<h2>六、当前预期温度：研报与资金严重背离</h2>
+<div class="grid g4">
+  <div class="kpi">
+    <div class="lab">机构综合目标价</div>
+    <div class="val up">22.81 元</div>
+    <div class="note">较现价 +43.7%（Wind，2026-10-14）</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">近 20 日 / 近 60 日</div>
+    <div class="val down">-12.6% / -18.2%</div>
+    <div class="note">年初至今 -23.2%，52 周区间 13.76–36.83 元</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">主动偏股基金持股比例</div>
+    <div class="val down">0.36%</div>
+    <div class="note">环比 -0.19pct，基金数 23 → 8 家</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">近 5 日主力资金</div>
+    <div class="val down">-4.97 亿元</div>
+    <div class="note">融资余额 31.79 亿元，3 连降</div>
+  </div>
+</div>
+<div class="tbl-wrap" style="margin-top:16px">
+  <h3 style="margin-top:0">背离的含义</h3>
+  <p style="margin-bottom:10px">近 6 个月 11 家机构评级 <b>100% 为买入/增持，0 家持有或减持</b>，目标价维持在 22–24 元一线；与此同时股价自 36.83 元高点回撤约 58%，主动偏股基金几乎清仓式减持。</p>
+  <p style="margin-bottom:0">这通常意味着两类可能：<b>① 卖方盈利预测尚未跟随股价下修</b>——若三季报不及 8 亿元下限，研报将面临集中下调，股价的"锚"会从 22.81 元向下重估；<b>② 机构已在三季报前主动减仓</b>——若三季报符合预期，则存在资金回补带来的修复空间。<b>三季报正是验证这两种可能性的第一个硬节点。</b>需要提醒的是，富途平台显示的 H 股（02208）4 位分析师平均目标价 17.94 港元，与现价 7.665 港元差距达 134%，明显存在<b>目标价未及时更新</b>的情况，参考价值有限。</p>
+</div>
+
+<!-- ============ 会前清单 ============ -->
+<h2>七、会后前 15 分钟必核对的 3 个数字</h2>
+<div class="grid g3">
+  <div class="kpi">
+    <div class="lab">① 单季综合毛利率</div>
+    <div class="val" style="font-size:19px">环比是否续升</div>
+    <div class="note">H1 16.76%；风机 11.62%（同比 +3.65pct）</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">② 经营活动现金流净额</div>
+    <div class="val" style="font-size:19px">累计是否收窄</div>
+    <div class="note">H1 −15.78 亿元（上年同期 −29.49 亿元）</div>
+  </div>
+  <div class="kpi">
+    <div class="lab">③ 海外收入占比</div>
+    <div class="val" style="font-size:19px">是否 > 32.27%</div>
+    <div class="note">H1 108.87 亿元、同比 +29.94%</div>
+  </div>
+</div>
+<div class="tbl-wrap" style="margin-top:16px">
+  <h3 style="margin-top:0">业绩会上最值得听的方向</h3>
+  <ul class="chk">
+    <li><b>Q4 交付与收入确认节奏的明确指引</b>——这是全年 43 亿元一致预期能否成立的最直接回答，比 Q3 数字本身重要一个数量级。</li>
+    <li><b>年末是否计提减值/大额费用</b>——2024Q4、2025Q4 连续两年利润断崖，管理层如何解释这一模式。</li>
+    <li><b>绿色甲醇 Q4 交付的合同金额与确认方式</b>——75 万吨在手订单中，四季度实际能确认多少。</li>
+    <li><b>海外毛利率的可持续性</b>——17.79% 的海外毛利率是否受汇率、地缘或本地化成本影响会回落。</li>
+    <li><b>在手订单结构的边际变化</b>——截至 6 月末在手订单 54,142MW（外部 51.0GW，海外 9,489MW、同比 +28.93%），关注外部订单同比 -2% 这一信号是否延续。</li>
+  </ul>
+</div>
+
+<!-- ============ 风险 ============ -->
+<h2>八、财报即使不错也不能忽略的风险</h2>
+<div class="tbl-wrap">
+  <ul class="chk">
+    <li><b>价格战与毛利率：</b>整机环节竞争激烈，若 Q4 为抢交付再次牺牲价格，2027 年的毛利率修复逻辑会被削弱。</li>
+    <li><b>资产负债率 71.81%（2026-06-30）：</b>财务杠杆偏高，营运资金占用大，利率或信用环境变化会直接放大利润波动。</li>
+    <li><b>应收账款与回款：</b>H1 应收款项周转率仅 1.00 次，叠加经营现金流仍为负，规模扩张对现金的消耗是持续性压力。</li>
+    <li><b>海外地缘与汇率：</b>海外收入占比已达 32.27%，海外收入增速（+29.94%）明显快于国内（+13.36%），增长依赖度上升意味着地缘、关税、汇率风险敞口扩大。</li>
+    <li><b>资金面：</b>美银 H 股持股由 5.43% 降至 3.24%，若后续继续减持，将对 A 股情绪形成传导；主动偏股基金持股比例仅 0.36%，缺乏增量机构资金支撑。</li>
+    <li><b>蓝箭航天概念的估值扰动：</b>公司参股蓝箭航天约 4.14%，这部分股权投资的公允价值变动会放大净利润的非经常性波动，可能导致"归母"与"扣非"口径出现明显背离。</li>
+  </ul>
+</div>
+
+<footer>
+  <p style="margin-bottom:8px"><b>数据来源与口径说明</b><br>
+  · 公司定期报告（2025 年各季度报告、2026 年一季报及半年度报告）——实际值，一手来源<br>
+  · 港交所公告（2026-10-09）、深交所预约披露日——披露时点，一手来源<br>
+  · Wind 一致预期（36 家机构，截至 2026-10-14）、行情与资金流数据（2026-10-14 收盘）——第三方数据<br>
+  · 申万宏源《电新行业 2026 年三季报业绩前瞻》（2026-10-09）及各券商个股研报——非一手来源，引用需核实原文<br>
+  · 单季数值均由累计值差分计算，可能存在四舍五入误差</p>
+  <p style="margin-bottom:0"><b>免责声明</b>：以上内容基于公开数据和量化分析，仅供参考，不构成投资建议。市场有风险，投资需谨慎。任何投资决策应结合个人风险承受能力、资金状况和投资目标独立判断，必要时咨询持牌专业机构。过往表现不预示未来收益。</p>
+</footer>
+
+</div>
+
+<script>
+var C_GREEN = '#1a7f37';
+var C_RED = '#d1242f';
+var C_BLUE = '#1f4e79';
+
+function buildToggle() {
+  var tabs = document.querySelectorAll('.tab');
+  tabs.forEach(function (t) {
+    t.addEventListener('click', function () {
+      var group = t.getAttribute('data-g');
+      document.querySelectorAll('.tab[data-g="' + group + '"]').forEach(function (x) { x.classList.remove('on'); });
+      t.classList.add('on');
+      var target = t.getAttribute('data-t');
+      ['c', 't'].forEach(function (s) {
+        var el = document.getElementById(group + '-' + s);
+        if (el) { el.style.display = (target === group + '-' + s) ? 'block' : 'none'; }
+      });
+    });
+  });
+}
+
+function initChart1() {
+  var el = document.getElementById('chart1-c');
+  if (!el) return;
+  var c = echarts.init(el);
+  c.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['单季营业收入', '单季归母净利润'], top: 0 },
+    grid: { left: 58, right: 58, top: 44, bottom: 32 },
+    xAxis: { type: 'category', data: ['2025Q1', '2025Q2', '2025Q3', '2025Q4', '2026Q1', '2026Q2', '2026Q3E'] },
+    yAxis: [
+      { type: 'value', name: '营收(亿元)', nameTextStyle: { fontSize: 11 } },
+      { type: 'value', name: '归母净利(亿元)', nameTextStyle: { fontSize: 11 }, splitLine: { show: false } }
+    ],
+    series: [
+      {
+        name: '单季营业收入', type: 'bar', barMaxWidth: 38,
+        itemStyle: { color: '#9db8d2' },
+        data: [94.72, 190.65, 196.10, 248.76, 154.85, 182.54, 205]
+      },
+      {
+        name: '单季归母净利润', type: 'line', yAxisIndex: 1, smooth: false,
+        symbolSize: 8, lineStyle: { width: 2.5, color: C_BLUE },
+        itemStyle: { color: C_BLUE },
+        label: { show: true, position: 'top', fontSize: 11, formatter: '{c}' },
+        data: [5.68, 9.20, 10.96, 1.90, 9.07, 9.48, 9.50]
+      }
+    ]
+  });
+}
+
+function initChart2() {
+  var el = document.getElementById('chart2');
+  if (!el) return;
+  var names = ['国金证券', '财信证券', 'UBS', '华泰证券', '申万宏源', '长江证券', '国盛证券', '广发证券', '平安证券', '光大证券', '东吴证券', '国信证券', '中信建投', '中信证券'];
+  var vals = [53.56, 52.02, 46.83, 45.89, 44.31, 43.42, 42.82, 42.29, 41.61, 41.36, 40.52, 39.92, 37.70, 37.46];
+  var colors = names.map(function (n) {
+    return n === '国金证券' || n === '财信证券' ? C_RED : (n === '中信证券' || n === '中信建投' ? C_GREEN : C_BLUE);
+  });
+  var c = echarts.init(el);
+  c.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: 90, right: 70, top: 16, bottom: 30 },
+    xAxis: { type: 'value', name: '亿元', nameLocation: 'end', max: 60 },
+    yAxis: { type: 'category', data: names, inverse: true },
+    series: [
+      {
+        type: 'bar', barMaxWidth: 20,
+        label: { show: true, position: 'right', fontSize: 11, formatter: '{c}' },
+        data: vals.map(function (v, i) { return { value: v, itemStyle: { color: colors[i] } }; })
+      },
+      {
+        type: 'line', name: '均值 43.6',
+        xAxisIndex: 0,
+        markLine: {
+          silent: true, symbol: 'none',
+          lineStyle: { color: '#6b7280', type: 'dashed', width: 1.5 },
+          label: { formatter: '均值 43.6', position: 'insideEndTop', fontSize: 11, color: '#6b7280' },
+          data: [{ xAxis: 43.6 }]
+        },
+        data: []
+      }
+    ]
+  });
+}
+
+function initChart3() {
+  var el = document.getElementById('chart3');
+  if (!el) return;
+  var c = echarts.init(el);
+  c.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['前三季度累计归母', '第四季度单季归母'], top: 0 },
+    grid: { left: 58, right: 30, top: 44, bottom: 46 },
+    xAxis: { type: 'category', data: ['2025年（实际）', '2026年（预测/隐含）'] },
+    yAxis: { type: 'value', name: '亿元', nameTextStyle: { fontSize: 11 } },
+    series: [
+      {
+        name: '前三季度累计归母', type: 'bar', barWidth: 78, barGap: '20%',
+        itemStyle: { color: '#1f4e79' },
+        label: { show: true, position: 'top', fontSize: 12, fontWeight: 'bold', formatter: '{c}' },
+        data: [25.84, 28.10]
+      },
+      {
+        name: '第四季度单季归母', type: 'bar', barWidth: 78,
+        itemStyle: { color: '#d1242f' },
+        label: { show: true, position: 'top', fontSize: 12, fontWeight: 'bold', formatter: '{c}' },
+        data: [1.90, 14.95]
+      }
+    ],
+    graphic: [
+      {
+        type: 'text', left: 'center', top: 108,
+        style: { text: 'Q4 需跳升约 6.9 倍', fill: '#d1242f', fontSize: 13, fontWeight: 'bold' }
+      }
+    ]
+  });
+}
+
+buildToggle();
+initChart1();
+initChart2();
+initChart3();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前后端分离 - 负载均衡演示</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 30px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 10px; color: #e94560; }
+        .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+        .card h2 { color: #e94560; margin-bottom: 15px; font-size: 1.1em; }
+        .btn {
+            background: #e94560;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px 5px 5px 0;
+            transition: all 0.3s;
+        }
+        .btn:hover { background: #c73650; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn-secondary { background: #0f3460; }
+        .btn-secondary:hover { background: #1a4a7a; }
+        .result {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #58d68d;
+            min-height: 60px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-box {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+        .stat-box .label { font-size: 12px; color: #888; margin-bottom: 5px; }
+        .stat-box .value { font-size: 28px; font-weight: bold; }
+        .server-a { color: #7b68ee; }
+        .server-b { color: #ff69b4; }
+        .log-list { font-size: 13px; max-height: 200px; overflow-y: auto; }
+        .log-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .log-item .time { color: #666; font-size: 11px; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-a { background: rgba(123,104,238,0.2); color: #7b68ee; }
+        .badge-b { background: rgba(255,105,180,0.2); color: #ff69b4; }
+        .clear { margin-left: 10px; }
+        .tip { color: #888; font-size: 12px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>前后端分离 - Nginx 负载均衡演示</h1>
+    <p class="subtitle">前端静态文件由 Nginx 直接提供 | 后端 API 由 Nginx 负载均衡到两台服务器</p>
+
+    <div class="card">
+        <h2>1. API 请求测试</h2>
+        <button class="btn" onclick="callApi('/api/user')">获取用户信息</button>
+        <button class="btn" onclick="callApi('/api/products')">获取商品列表</button>
+        <button class="btn btn-secondary" onclick="callApi('/api/order')">创建订单</button>
+        <button class="btn btn-secondary clear" onclick="clearResult()">清空</button>
+        <div class="result" id="result">点击上方按钮，向后端发送请求...</div>
+    </div>
+
+    <div class="card">
+        <h2>2. 批量请求（快速发送 10 次）</h2>
+        <button class="btn" onclick="batchRequest(10)">发送 10 次请求</button>
+        <button class="btn btn-secondary" onclick="batchRequest(20)">发送 20 次请求</button>
+        <div class="stats">
+            <div class="stat-box">
+                <div class="label">服务器A (端口4001)</div>
+                <div class="value server-a" id="countA">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="label">服务器B (端口4002)</div>
+                <div class="value server-b" id="countB">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>3. 请求日志</h2>
+        <div class="log-list" id="logList">
+            <div class="log-item"><span class="time">暂无日志</span></div>
+        </div>
+    </div>
+
+    <p class="tip">提示：前端页面是 Nginx 直接返回的静态文件（html目录），API 请求 /api/* 被 Nginx 反向代理到后端服务器组</p>
+</div>
+
+<script>
+    let countA = 0, countB = 0;
+
+    async function callApi(endpoint) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.textContent = `[请求中] GET ${endpoint} ...`;
+
+        try {
+            const res = await fetch(endpoint);
+            const data = await res.json();
+            const time = new Date().toLocaleTimeString();
+
+            const serverName = data.server || '未知';
+            const isA = serverName.includes('A');
+            if (isA) countA++; else countB++;
+            updateStats();
+            addLog(endpoint, serverName, time);
+
+            resultDiv.textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+            resultDiv.textContent = `[错误] ${err.message}`;
+        }
+    }
+
+    async function batchRequest(times) {
+        countA = 0; countB = 0;
+        updateStats();
+        document.getElementById('logList').innerHTML = '';
+
+        for (let i = 0; i < times; i++) {
+            const endpoint = ['/api/user', '/api/products', '/api/order'][i % 3];
+            try {
+                const res = await fetch(endpoint);
+                const data = await res.json();
+                const serverName = data.server || '未知';
+                if (serverName.includes('A')) countA++; else countB++;
+                updateStats();
+                addLog(endpoint, serverName, new Date().toLocaleTimeString());
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    }
+
+    function updateStats() {
+        document.getElementById('countA').textContent = countA;
+        document.getElementById('countB').textContent = countB;
+    }
+
+    function addLog(endpoint, server, time) {
+        const logList = document.getElementById('logList');
+        const isA = server.includes('A');
+        const badgeClass = isA ? 'badge-a' : 'badge-b';
+        const item = document.createElement('div');
+        item.className = 'log-item';
+        item.innerHTML = `<span><span class="badge ${badgeClass}">${server}</span> ${endpoint}</span><span class="time">${time}</span>`;
+        if (logList.querySelector('.time')?.textContent === '暂无日志') {
+            logList.innerHTML = '';
+        }
+        logList.insertBefore(item, logList.firstChild);
+    }
+
+    function clearResult() {
+        document.getElementById('result').textContent = '已清空，点击按钮重新请求...';
+    }
+</script>
+</body>
+</html>

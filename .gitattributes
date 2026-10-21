@@ -1,0 +1,32 @@
+# ===== 换行符规范 =====
+# Windows 开发、Linux 部署，必须显式指定，否则 WSL 里执行 .sh 会报
+# "bad interpreter: /bin/bash^M"
+* text=auto eol=lf
+
+# 明确指定各类文件
+*.sh    text eol=lf
+*.js    text eol=lf
+*.json  text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+Jenkinsfile text eol=lf
+.gitignore   text eol=lf
+
+# Windows 专有格式保持 CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# 二进制文件不做换行符转换
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.exe  binary
+*.woff  binary
+*.woff2 binary

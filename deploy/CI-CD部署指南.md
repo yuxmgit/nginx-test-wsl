@@ -28,41 +28,96 @@
 
 ### 0.1 你会遇到什么
 
-你当前的网络环境需要走代理才能访问 GitHub。直连和走默认代理都探测过：
+已实测确认你的网络环境：
 
 ```
-CONNECT github.com:443  →  HTTP/1.1 502 Bad Gateway   （代理拒绝了 CONNECT 隧道）
+$ git push -u origin main
+fatal: unable to access 'https://github.com/yuxmgit/nginx-test-wsl.git/':
+CONNECT tunnel failed, response 502
 ```
 
-如果 `git push` 报 `CONNECT tunnel failed, response 502` 或 `Failed to connect to github.com port 443`，就是这个原因。
+**根因**（已逐项排查）：
 
-### 0.2 方案 A：给 Git 配置代理（推荐）
+| 检查项 | 结果 |
+|---|---|
+| Windows 系统代理配置 | `ProxyServer = 127.0.0.1:7890`，但 `ProxyEnable = 0` |
+| 7890 端口监听 | ❌ **未监听** —— 代理软件（Clash / Verge / V2Ray 等）当前没启动 |
+| 直连 github.com:443 | ❌ 超时（无返回码） |
+| 走环境变量代理（WorkBuddy 内部 52670） | ❌ `CONNECT tunnel failed, 502`（内部代理不放行 github） |
+| SSH 22 端口 | ❌ 不通 |
 
-先在浏览器确认你的代理端口。常见是 Clash(7890) / V2Ray(10809) / 公司代理(自定义)。
+**结论：你的代理软件没开。** 这是推送失败的根本原因，不是 Git 配置问题。
+
+### 0.2 方案 A：启动代理软件后推送（推荐）
+
+**第 1 步：启动你的代理软件**（Clash Verge / V2RayN / Shadowsocks 等），确保它正常连上。
+
+**第 2 步：跑诊断脚本**（自动探测端口 + 测试连通 + 配置代理）：
+
+```bash
+cd /mnt/i/练习/nginx        # 或 Windows Git Bash 里 cd /i/练习/nginx
+bash deploy/git-proxy-check.sh
+```
+
+脚本会依次做：读当前代理配置 → 扫 12 个常见代理端口 → 用找到的端口测试 GitHub → 验证 `git ls-remote`。
+全绿时输出：
+
+```
+[ok] 端口 7890 正在监听
+[ok] 代理 http://127.0.0.1:7890 可访问 GitHub
+[ok] 仓库可达，可以执行： git push -u origin main
+```
+
+如果一个端口都没扫到，会直接告诉你"请先启动代理软件"。
+
+**第 3 步：自动配置并验证**：
+
+```bash
+bash deploy/git-proxy-check.sh --set 7890
+```
+
+`--set` 会用**仓库级**配置（`git config --local`），只影响这个项目，不会干扰你公司内网的 GitLab。
+想用全局配置就手动执行：
+
+```bash
+git config --global http.proxy  http://127.0.0.1:7890
+git config --global https.proxy http://127.0.0.1:7890
+```
+
+**第 4 步：推送**：
+
+```bash
+git push -u origin main
+```
+
+> **端口号要改成你实际的**。系统代理设置里写的是 7890，但如果你的软件用的是别的端口
+> （Clash Verge 默认 7897，V2RayN 默认 10809），以软件界面显示的为准。
+>
+> **如果代理是 SOCKS5 协议**（不是 HTTP），要用：
+> ```bash
+> git config --global http.proxy  socks5h://127.0.0.1:1080
+> git config --global https.proxy socks5h://127.0.0.1:1080
+> ```
+
+**取消代理**（`--unset` 会同时清掉仓库级和全局级）：
+
+```bash
+bash deploy/git-proxy-check.sh --unset
+```
+
+### 0.2.1 让 Git 只对这个仓库走代理（更干净）
+
+全局代理会影响所有 Git 操作，包括公司内网的 GitLab。改用仓库级配置：
 
 ```bash
 cd /i/练习/nginx
-
-# 假设代理在 127.0.0.1:7890，换成你的实际端口
-git config --global http.proxy  http://127.0.0.1:7890
-git config --global https.proxy http://127.0.0.1:7890
-
-# 测试连通性
-git ls-remote origin
+git config --local http.proxy  http://127.0.0.1:7890
+git config --local https.proxy http://127.0.0.1:7890
 ```
 
-看到输出 `HEAD refs/heads/main` 之类就说明通了。
+### 0.3 方案 B：走 SSH 22 端口
 
-**取消代理**：
-
-```bash
-git config --global --unset http.proxy
-git config --global --unset https.proxy
-```
-
-### 0.3 方案 B：走 SSH 22 端口（某些代理只放行 443）
-
-22 端口在你当前网络下也不通，所以这条路暂时不通。但如果你之后换网络环境，SSH 更稳定：
+如果你的代理软件支持"允许 SSH 流量"（Clash Verge 有 `Allow LAN` 和 TUN 模式），可以走 SSH：
 
 ```bash
 # 生成密钥（Windows Git Bash）
@@ -70,16 +125,18 @@ ssh-keygen -t ed25519 -C "yuxiangming@ata.net.cn"
 cat ~/.ssh/id_ed25519.pub
 ```
 
-把公钥加到 GitHub → Settings → SSH keys，然后：
+把公钥加到 GitHub → Settings → SSH and GPG keys，然后：
 
 ```bash
 git remote set-url origin git@github.com:yuxmgit/nginx-test-wsl.git
 git push -u origin main
 ```
 
+> 前提是 22 端口能通。刚才实测**当前不通**，所以这条路要等代理支持 SSH 流量后才能走。
+
 ### 0.4 方案 C：手动上传（最笨但最可靠）
 
-GitHub 仓库页面 → **Add file** → **Upload files**，把 `backend/`、`frontend/`、`deploy/`、`Jenkinsfile`、`.gitignore` 拖上去。
+GitHub 仓库页面 → **Add file** → **Upload files**，把 `backend/`、`frontend/`、`deploy/`、`Jenkinsfile`、`.gitignore`、`.gitattributes` 拖上去。
 缺点：只有一次性快照，后续没有 git 历史，不推荐长期用。
 
 ### 0.5 认证
@@ -101,11 +158,14 @@ git push -u origin main
 
 > **注意**：`git push -u origin main` 会把当前 `main` 推上去。
 > 远程仓库已有 2 个提交，你本地也是这 2 个提交 + 新的，所以是 fast-forward，不会冲突。
+> `-u` 参数必须带 —— 你本地 `main` 目前没有 upstream，不带会报
+> `fatal: The current branch main has no upstream branch`。
 
 ---
 
 ## 目录
 
+- [第 0 章：先把代码推上 GitHub](#第-0-章先把代码推上-github你的环境有代理问题)
 - [第 1 章：先想清楚架构](#第-1-章先想清楚架构)
 - [第 2 章：准备 GitHub 仓库](#第-2-章准备-github-仓库)
 - [第 3 章：本地 Git 初始化与首次推送](#第-3-章本地-git-初始化与首次推送)
@@ -117,7 +177,22 @@ git push -u origin main
 - [第 9 章：配置 Webhook 实现推送即部署](#第-9-章配置-webhook-实现推送即部署)
 - [第 10 章：验证与排错](#第-10-章验证与排错)
 - [附录 A：完整命令速查](#附录-a完整命令速查)
+- [附录 A-1：最短路径行动清单](#附录-a-1最短路径行动清单照着做就行)
 - [附录 B：常见报错对照表](#附录-b常见报错对照表)
+
+---
+
+## 本方案涉及的文件
+
+| 文件 | 作用 |
+|---|---|
+| `Jenkinsfile` | 流水线定义，Jenkins 从仓库根目录读取 |
+| `deploy/ci-deploy.sh` | 无人值守部署 + 健康检查 + 自动回滚 |
+| `deploy/jenkins-setup.sh` | Jenkins 一键安装 + 免密 sudo + SSH 密钥 |
+| `deploy/git-proxy-check.sh` | GitHub 连通性诊断 + 代理自动配置 |
+| `deploy/CI-CD部署指南.md` | 本文档 |
+| `.gitignore` | 排除 nginx 二进制、日志、密钥、`.workbuddy/` |
+| `.gitattributes` | 统一换行符为 LF（WSL 执行 .sh 的前提） |
 
 ---
 
@@ -851,8 +926,8 @@ git push origin main
 
 | # | 在哪执行 | 命令 | 预期 |
 |---|---|---|---|
-| 1 | Windows | `git config --global http.proxy http://127.0.0.1:7890` | 换你的代理端口 |
-| 2 | Windows | `git ls-remote origin` | 出现 `refs/heads/main` = 通 |
+| 1 | Windows | 启动代理软件（Clash / Verge / V2Ray 等） | — |
+| 2 | Windows | `bash deploy/git-proxy-check.sh --set 7890` | 端口号按实际改；输出"仓库可达" |
 | 3 | Windows | `git add . && git commit -m "ci: 接入 Jenkins" && git push -u origin main` | 推送成功 |
 | 4 | WSL | `sudo bash deploy/jenkins-setup.sh` | 显示"Jenkins 环境准备完成" |
 | 5 | WSL | `sudo cat /var/lib/jenkins/secrets/initialAdminPassword` | 拿到初始密码 |

@@ -432,29 +432,26 @@ processors=4
 
 然后在 PowerShell 执行 `wsl --shutdown`，重进 Ubuntu 再验证。
 
-### 4.2 安装 Java
+### 4.2 添加 Jenkins 软件源
 
-Jenkins 2.4xx 需要 Java 17 或 21：
-
-```bash
-sudo apt update
-sudo apt install -y fontconfig openjdk-17-jre curl
-java -version
-```
-
-### 4.3 添加 Jenkins 软件源并安装
+先更新 Jenkins 签名密钥和软件源，再运行 `apt update`，避免旧密钥导致更新失败：
 
 ```bash
 # 添加 GPG 公钥
-sudo curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key \
-  | sudo tee /usr/share/keyrings/jenkins.io-2023.key > /dev/null
+sudo curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key \
+  -o /usr/share/keyrings/jenkins-keyring.asc
 
 # 添加源
-echo "deb [signed-by=/usr/share/keyrings/jenkins.io-2023.key] https://pkg.jenkins.io/debian-stable binary/" \
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
   | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
+```
 
-# 安装
+### 4.3 安装 Java 21 和 Jenkins
+
+```bash
 sudo apt update
+sudo apt install -y fontconfig openjdk-21-jre curl
+java -version
 sudo apt install -y jenkins
 
 # 确认已注册为 systemd 服务
@@ -650,8 +647,8 @@ sudo visudo -c    # 校验全部 sudoers 语法
 **测试**：
 
 ```bash
-sudo -u jenkins sudo -n systemctl restart api-server1
-# 不报错就说明配好了
+sudo -u jenkins sudo -n /bin/systemctl status api-server1 api-server2
+# 能显示两个服务的状态（即使服务未运行），且没有 sudo 权限拒绝，就说明配好了
 ```
 
 > ⚠️ `/bin/rm -rf *` 这条权限很大。生产环境应该改成更精确的路径白名单，

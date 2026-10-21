@@ -30,26 +30,25 @@ else
 然后在 PowerShell 执行 wsl --shutdown，重进 Ubuntu 再跑本脚本。"
 fi
 
-# ---------- 2. Java ----------
-log "步骤 2/7  安装 Java 17"
-if ! command -v java >/dev/null; then
-    apt update
-    apt install -y fontconfig openjdk-17-jre curl rsync
-else
-    ok "Java 已安装：$(java -version 2>&1 | head -1)"
-    apt install -y rsync 2>/dev/null || true
-fi
-java -version 2>&1 | head -1
+# ---------- 2. Jenkins 仓库 ----------
+log "步骤 2/7  配置 Jenkins 软件源"
+install -d -m 0755 /usr/share/keyrings
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key \
+    -o /usr/share/keyrings/jenkins-keyring.asc
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" \
+    > /etc/apt/sources.list.d/jenkins.list
+ok "Jenkins 软件源及签名密钥已配置"
 
-# ---------- 3. Jenkins 仓库 ----------
-log "步骤 3/7  配置 Jenkins 软件源"
+# ---------- 3. Java ----------
+log "步骤 3/7  安装 Java 21"
+apt update
+apt install -y fontconfig openjdk-21-jre curl rsync
+java -version 2>&1 | head -1
+if ! java -version 2>&1 | grep -q '21'; then
+    die "Jenkins 需要 Java 21，请检查默认 Java 版本"
+fi
+
 if ! dpkg -l 2>/dev/null | grep -q "^ii  jenkins "; then
-    install -d -m 0755 /usr/share/keyrings
-    curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key \
-        | tee /usr/share/keyrings/jenkins.io-2023.key > /dev/null
-    echo "deb [signed-by=/usr/share/keyrings/jenkins.io-2023.key] https://pkg.jenkins.io/debian-stable binary/" \
-        > /etc/apt/sources.list.d/jenkins.list
-    apt update
     apt install -y jenkins
     ok "Jenkins 已安装"
 else

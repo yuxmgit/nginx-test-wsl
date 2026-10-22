@@ -188,7 +188,7 @@ git push -u origin main
 |---|---|
 | `Jenkinsfile` | 流水线定义，Jenkins 从仓库根目录读取 |
 | `deploy/ci-deploy.sh` | 无人值守部署 + 健康检查 + 自动回滚 |
-| `deploy/jenkins-setup.sh` | Jenkins 一键安装 + 免密 sudo + SSH 密钥 |
+| `deploy/jenkins-setup.sh` | Jenkins 一键安装 + 部署目录 ACL + 受限 sudo + SSH 密钥 |
 | `deploy/git-proxy-check.sh` | GitHub 连通性诊断 + 代理自动配置 |
 | `deploy/CI-CD部署指南.md` | 本文档 |
 | `.gitignore` | 排除 nginx 二进制、日志、密钥、`.workbuddy/` |
@@ -405,7 +405,7 @@ ssh-add -l                                                # 看 agent 里的密�
 
 ## 第 4 章：在 WSL Ubuntu 里安装 Jenkins
 
-> **最省事的做法**：直接跑一键脚本，它把本章 4.1~4.4 + 第 7 章的免密 sudo 全部做完：
+> **最省事的做法**：直接跑一键脚本，它把本章 4.1~4.4 + 第 7 章的部署权限配置全部做完：
 >
 > ```bash
 > cd /mnt/i/练习/nginx
@@ -614,45 +614,25 @@ sudo -u jenkins ssh -T git@github.com
 
 ## 第 7 章：配置免密 sudo（关键）
 
-Jenkins 以 `jenkins` 用户运行，要执行 `systemctl restart`、`nginx -t` 就得免密 sudo。
+Jenkins 以 `jenkins` 用户运行。部署文件由该用户直接更新；只有重启指定服务和检查/重载 Nginx 使用免密 sudo。运行一键脚本会配置部署目录 ACL 和受限 sudoers。
 
 ```bash
-sudo visudo -f /etc/sudoers.d/jenkins
+cd /mnt/i/练习/nginx
+sudo env SSH_KEY_SOURCE="/home/yuxiangming/.ssh/id_ed25519" \
+  bash deploy/jenkins-setup.sh
 ```
 
-写入（**用 `visudo` 校验语法，写错会导致 sudo 整个挂掉**）：
-
-```sudoers
-# Jenkins 自动部署专用
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl restart api-server1 api-server2
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl restart nginx
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl status api-server1 api-server2
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl status nginx
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
-jenkins ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
-jenkins ALL=(ALL) NOPASSWD: /usr/bin/rsync *
-jenkins ALL=(ALL) NOPASSWD: /bin/mkdir *
-jenkins ALL=(ALL) NOPASSWD: /bin/cp -a *
-jenkins ALL=(ALL) NOPASSWD: /bin/rm -rf *
-jenkins ALL=(ALL) NOPASSWD: /usr/bin/journalctl *
-jenkins ALL=(ALL) NOPASSWD: /usr/bin/tail *
-```
-
-```bash
-sudo chmod 440 /etc/sudoers.d/jenkins
-sudo visudo -c    # 校验全部 sudoers 语法
-```
+脚本会为 Jenkins 配置部署目录 ACL，并只允许它重启指定后端服务、检查/重载 Nginx 和读取所需日志。不要授权 Jenkins 执行任意 `bash`、`rsync`、`rm` 或其他通配命令。
 
 **测试**：
 
 ```bash
-sudo -u jenkins sudo -n /bin/systemctl status api-server1 api-server2
-# 能显示两个服务的状态（即使服务未运行），且没有 sudo 权限拒绝，就说明配好了
+sudo -u jenkins test -w /home/yuxiangming/nginx-project
+sudo -u jenkins sudo -n /usr/sbin/nginx -t
+# 第一条应成功；第二条应显示 Nginx 配置测试通过
 ```
 
-> ⚠️ `/bin/rm -rf *` 这条权限很大。生产环境应该改成更精确的路径白名单，
-> 或者给 Jenkins 单独建一个部署用户组。学习阶段可以先这么用，但心里要有数。
+部署阶段由 `jenkins` 用户运行脚本，只有服务操作使用受限 sudo。不要在 Jenkinsfile 中用 `sudo bash` 执行工作区里的脚本。
 
 ---
 
@@ -688,7 +668,7 @@ github.com/yuxmgit/nginx-test-wsl.git
         │  git clone（由 Jenkins 执行）
         ▼
 WSL: /var/lib/jenkins/workspace/nginx-deploy/   ← Jenkins 的临时工作区
-        │  sudo bash deploy/ci-deploy.sh
+        │  jenkins 用户运行 deploy/ci-deploy.sh
         ▼
 WSL: /home/yuxiangming/nginx-project/           ← 真正对外提供服务的位置
         │
@@ -859,7 +839,7 @@ git add . && git commit -m "test: 故意制造语法错误" && git push
 | `Permission denied (publickey)` | SSH 私钥没配到 Jenkins | 第 6.1 节，检查 `/var/lib/jenkins/.ssh/` 权限 |
 | `fatal: could not read Username` | HTTPS 没配凭据 | 用 token 作密码，或改用 SSH |
 | `Host key verification failed` | 首次连接未确认 host key | `sudo -u jenkins ssh -T git@github.com` 手动确认一次 |
-| `sudo: a password is required` | 免密 sudo 没配 | 第 7 章，检查 `/etc/sudoers.d/jenkins` 权限 440 |
+| `sudo: I'm sorry jenkins. I'm afraid I can't do that` | Jenkinsfile 正在用 sudo 执行工作区脚本 | 用最新版 Jenkinsfile：脚本以 jenkins 用户运行；按第 7 章重新运行环境配置脚本 |
 | `nginx: [emerg] invalid number of arguments` | nginx 配置语法错 | `sudo nginx -t` 看具体行号 |
 | `500 Internal Server Error` | 后端进程挂了 | `journalctl -u api-server1 -n 50` |
 | `502 Bad Gateway` | nginx 连不上后端 | 确认 4001/4002 端口在监听 |
@@ -883,7 +863,7 @@ git add . && git commit -m "test: 故意制造语法错误" && git push
 | Jenkins 工作区 | `/var/lib/jenkins/workspace/nginx-deploy` |
 | Jenkins 初始密码文件 | `/var/lib/jenkins/secrets/initialAdminPassword` |
 | GitHub 仓库 | `https://github.com/yuxmgit/nginx-test-wsl.git` |
-| 备份目录 | `/home/yuxiangming/.deploy-backups/` |
+| 备份目录 | `/var/lib/jenkins/deploy-backups/` |
 
 ```bash
 # ===== WSL Ubuntu =====
@@ -899,11 +879,11 @@ sudo tail -f /var/log/nginx/error.log
 
 # 手动触发一次部署（模拟 Jenkins，完全走同一套逻辑）
 cd /mnt/i/练习/nginx
-sudo bash deploy/ci-deploy.sh "$(pwd)" /home/yuxiangming/nginx-project
+sudo -u jenkins env RUN_USER=yuxiangming bash deploy/ci-deploy.sh "$(pwd)" /home/yuxiangming/nginx-project
 
 # 回滚到最近一次备份
-ls -lt /home/yuxiangming/.deploy-backups/
-sudo rsync -a --delete /home/yuxiangming/.deploy-backups/<时间戳>/backend/ /home/yuxiangming/nginx-project/backend/
+ls -lt /var/lib/jenkins/deploy-backups/
+sudo rsync -a --delete /var/lib/jenkins/deploy-backups/<时间戳>/backend/ /home/yuxiangming/nginx-project/backend/
 
 # Jenkins 初始密码
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
@@ -964,9 +944,9 @@ environment {
 | 阶段 | 动作 | 失败处理 |
 |---|---|---|
 | 0 前置校验 | 检查源码结构、node、rsync 是否存在 | 立即退出 |
-| 1 备份 | 旧版本复制到 `~/.deploy-backups/<时间戳>/`，只留 5 份 | 备份失败不阻断 |
+| 1 备份 | 旧版本复制到 `/var/lib/jenkins/deploy-backups/<时间戳>/`，只留 5 份 | 立即退出 |
 | 2 同步 | rsync `--delete` 同步 backend/frontend | 立即退出 |
-| 3 校验 | 检查 systemd unit 里的 node 路径是否还有效，失效则修正 | 自动修正 |
+| 3 校验 | 检查 systemd unit、运行用户、工作目录及 Node 路径 | 配置不符时退出并提示管理员修正 |
 | 4 重启 | restart api-server1/2，`nginx -t` 通过才 reload | nginx -t 失败则不重载并退出 |
 | 5 健康检查 | 4001/4002/nginx 各请求一次，全 200 才算成功 | **失败自动回滚**并退出码非 0 |
 

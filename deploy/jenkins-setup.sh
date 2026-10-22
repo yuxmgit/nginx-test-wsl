@@ -2,16 +2,17 @@
 #
 # Jenkins 一键安装脚本（WSL Ubuntu）
 #
-# 用途：安装 Jenkins、配置免密 sudo、准备 jenkins 用户的 SSH 密钥
+# 用途：安装 Jenkins、配置受限 sudo、部署目录权限及 SSH 密钥
 # 用法：sudo bash deploy/jenkins-setup.sh
 #
 # 幂等：重复执行安全
 #
 set -euo pipefail
 
-RUN_USER="${RUN_USER:-$(whoami)}"
+RUN_USER="${RUN_USER:-${SUDO_USER:-$(id -un)}}"
 JENKINS_HOME_DIR="/var/lib/jenkins"
-SSH_KEY_SOURCE="${SSH_KEY_SOURCE:-$HOME/.ssh/id_ed25519}"
+DEPLOY_DIR="${DEPLOY_DIR:-$(getent passwd "$RUN_USER" | cut -d: -f6)/nginx-project}"
+SSH_KEY_SOURCE="${SSH_KEY_SOURCE:-$(getent passwd "$RUN_USER" | cut -d: -f6)/.ssh/id_ed25519}"
 
 log()  { echo -e "\n\033[1;36m==> $*\033[0m"; }
 ok()   { echo -e "\033[1;32m[ok]\033[0m $*"; }
@@ -42,7 +43,7 @@ ok "Jenkins 软件源及签名密钥已配置"
 # ---------- 3. Java ----------
 log "步骤 3/7  安装 Java 21"
 apt update
-apt install -y fontconfig openjdk-21-jre curl rsync
+apt install -y fontconfig openjdk-21-jre curl rsync acl
 java -version 2>&1 | head -1
 if ! java -version 2>&1 | grep -q '21'; then
     die "Jenkins 需要 Java 21，请检查默认 Java 版本"
@@ -66,24 +67,32 @@ else
     warn "Jenkins 未运行，查看日志：journalctl -u jenkins -n 50"
 fi
 
-# ---------- 5. 免密 sudo ----------
-log "步骤 5/7  配置 jenkins 用户免密 sudo"
+# ---------- 5. 部署目录权限及受限 sudo ----------
+log "步骤 5/7  配置 Jenkins 部署权限"
+id jenkins >/dev/null 2>&1 || die "jenkins 用户不存在"
+getent passwd "$RUN_USER" >/dev/null || die "部署用户不存在：$RUN_USER"
+command -v setfacl >/dev/null || die "setfacl 不存在，请安装 acl 软件包"
+USER_HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)"
+[ -n "$USER_HOME" ] || die "无法确定 $RUN_USER 的 home 目录"
+[ -d "$DEPLOY_DIR" ] || install -d -o "$RUN_USER" -g "$(id -gn "$RUN_USER")" -m 0755 "$DEPLOY_DIR"
+setfacl -m u:jenkins:--x "$USER_HOME"
+setfacl -R -m u:jenkins:rwX "$DEPLOY_DIR"
+find "$DEPLOY_DIR" -type d -exec setfacl -m d:u:jenkins:rwX {} +
+install -d -o jenkins -g jenkins -m 0750 "$JENKINS_HOME_DIR/deploy-backups"
+ok "Jenkins 可访问并更新 $DEPLOY_DIR"
+
 SUDOERS_FILE="/etc/sudoers.d/jenkins"
 cat > "$SUDOERS_FILE" << 'EOF'
 # Jenkins 自动部署专用（由 deploy/jenkins-setup.sh 生成）
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl restart api-server1 api-server2
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl reload nginx
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl restart nginx
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl status api-server1 api-server2
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl status nginx
-jenkins ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
-jenkins ALL=(ALL) NOPASSWD: /usr/sbin/nginx -t
-jenkins ALL=(ALL) NOPASSWD: /usr/bin/rsync *
-jenkins ALL=(ALL) NOPASSWD: /bin/mkdir *
-jenkins ALL=(ALL) NOPASSWD: /bin/cp -a *
-jenkins ALL=(ALL) NOPASSWD: /bin/rm -rf *
-jenkins ALL=(ALL) NOPASSWD: /usr/bin/journalctl *
-jenkins ALL=(ALL) NOPASSWD: /usr/bin/tail *
+jenkins ALL=(root) NOPASSWD: /usr/bin/systemctl restart api-server1 api-server2
+jenkins ALL=(root) NOPASSWD: /usr/bin/systemctl reload nginx
+jenkins ALL=(root) NOPASSWD: /usr/bin/systemctl restart nginx
+jenkins ALL=(root) NOPASSWD: /usr/sbin/nginx -t
+jenkins ALL=(root) NOPASSWD: /usr/bin/journalctl -u api-server1 --no-pager --lines=20
+jenkins ALL=(root) NOPASSWD: /usr/bin/journalctl -u api-server2 --no-pager --lines=20
+jenkins ALL=(root) NOPASSWD: /usr/bin/journalctl -u api-server1 --no-pager --lines=40
+jenkins ALL=(root) NOPASSWD: /usr/bin/journalctl -u api-server2 --no-pager --lines=40
+jenkins ALL=(root) NOPASSWD: /usr/bin/tail -n 30 /var/log/nginx/error.log
 EOF
 chmod 440 "$SUDOERS_FILE"
 if visudo -c -f "$SUDOERS_FILE"; then
@@ -148,6 +157,9 @@ cat << EOF
    5. Manage Jenkins → Credentials → 添加 SSH Username with private key
       ID 填 github-ssh，私钥粘贴 $JENKINS_HOME_DIR/.ssh/id_ed25519 的内容
    6. 新建 Pipeline 任务，Script Path 填 Jenkinsfile
+
+ 部署目录：   $DEPLOY_DIR
+ 备份目录：   $JENKINS_HOME_DIR/deploy-backups
 
  常用命令：
    sudo systemctl restart jenkins

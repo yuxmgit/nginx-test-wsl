@@ -76,8 +76,8 @@ pipeline {
                     nginx -v 2>&1 || true
                     echo "--- 端口占用 ---"
                     ss -tlnp 2>/dev/null | grep -E ':80|:4001|:4002' || echo "(尚未监听，属正常)"
-                    echo "--- 免密 sudo 验证 ---"
-                    sudo -n true && echo "sudo 免密 OK" || echo "sudo 免密失败，需配置 sudoers"
+                    echo "--- 部署目录权限 ---"
+                    test -x "$(dirname "$DEPLOY_DIR")" || { echo "Jenkins 无法访问部署目录的父目录"; exit 1; }
                 '''
             }
         }
@@ -103,8 +103,7 @@ pipeline {
             steps {
                 sh '''
                     set -e
-                    chmod +x deploy/ci-deploy.sh
-                    sudo -n bash deploy/ci-deploy.sh "$WORKSPACE" "$DEPLOY_DIR"
+                    RUN_USER="$DEPLOY_USER" bash deploy/ci-deploy.sh "$WORKSPACE" "$DEPLOY_DIR"
                 '''
                 sh '''
                     echo "===== 部署后状态 ====="
@@ -143,11 +142,11 @@ pipeline {
             echo "构建 #${BUILD_NUMBER} 失败 ❌"
             sh '''
                 echo "===== api-server1 最近日志 ====="
-                sudo -n journalctl -u api-server1 --no-pager --lines=40 || true
+                sudo -n /usr/bin/journalctl -u api-server1 --no-pager --lines=40 || true
                 echo "===== api-server2 最近日志 ====="
-                sudo -n journalctl -u api-server2 --no-pager --lines=40 || true
+                sudo -n /usr/bin/journalctl -u api-server2 --no-pager --lines=40 || true
                 echo "===== nginx 错误日志 ====="
-                sudo -n tail -n 30 /var/log/nginx/error.log || true
+                sudo -n /usr/bin/tail -n 30 /var/log/nginx/error.log || true
             '''.trim()
             // 可选：企业微信/钉钉/邮件通知
             // echo "部署失败，请检查 Jenkins 控制台日志"

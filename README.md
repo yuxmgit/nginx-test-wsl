@@ -38,19 +38,29 @@ cd /mnt/i/练习/nginx
 bash deploy/deploy.sh
 ```
 
-### 自动部署（推送到 GitHub 即触发）
+### 自动部署（Git 提交 → Jenkins 构建 → WSL 部署）
 
 ```bash
-git add .
-git commit -m "feat: xxx"
+git status
+# 将路径替换为本次改动的文件，例如 git add frontend/index.html
+git add frontend/index.html
+git diff --cached
+git commit -m "feat: 描述本次改动"
 git push origin main
 ```
 
-Jenkins 会自动拉取代码、语法预检、rsync 同步、重启服务并做健康检查。
+推送到 `main` 后，Jenkins 按任务中配置的触发方式启动构建。整条流水线如下：
 
-**触发方式**：因 Jenkins 跑在 WSL（NAT 内网地址），GitHub 无法直接推送 Webhook，
-故推荐 **Poll SCM 轮询**（每 2 分钟检查一次新提交）。
-配置步骤与其它方案见 [`deploy/jenkins-auto-trigger.md`](deploy/jenkins-auto-trigger.md)。
+1. GitHub 保存新提交；Webhook 可用时由推送通知 Jenkins，否则由 Poll SCM 轮询发现提交。
+2. Jenkins 从 `main` 检出代码，检查 Node/Nginx/部署目录和后端 JavaScript 语法。
+3. Jenkins 生成带构建号、分支和 commit SHA 的 `frontend/version.json`。
+4. `deploy/ci-deploy.sh` 备份当前版本，并用 `rsync` 同步前后端文件到 WSL 部署目录。
+5. 重启两个 Node 服务、检查并重载 Nginx；健康检查失败时尝试恢复备份版本。
+6. Jenkins 对首页、API、版本文件做冒烟测试，并检查前后端版本一致。
+
+构建通过后打开 <http://localhost> 查看部署信息面板；页面显示的 commit 和构建号应对应本次提交。
+详细的日常操作、流水线阶段和排错步骤见 [`deploy/CI-CD部署指南.md`](deploy/CI-CD部署指南.md)；
+触发器配置见 [`deploy/jenkins-auto-trigger.md`](deploy/jenkins-auto-trigger.md)。
 
 **诊断当前触发链路**：
 

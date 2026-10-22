@@ -7,28 +7,61 @@
 
 ---
 
-## ⚡ 你的当前状态速览
+## ⚡ 当前状态
 
 | 项目 | 状态 |
 |---|---|
-| Git 仓库 | ✅ 已初始化，分支 `main` |
-| 远程 origin | ✅ `https://github.com/yuxmgit/nginx-test-wsl.git` |
-| 已有提交 | ✅ `first commit` + `Refactor code structure...` |
-| `.gitignore` | ✅ 已配置（排除 nginx 源码/二进制、日志、密钥、`.workbuddy/`） |
-| `Jenkinsfile` | ✅ 已就位（仓库根目录） |
-| `deploy/ci-deploy.sh` | ✅ 已就位（无人值守部署 + 自动回滚） |
-| **待办 1** | ⚠️ 首次推送需配置代理（见第 0 章） |
-| **待办 2** | ⚠️ WSL 里安装 Jenkins（第 4 章） |
-| **待办 3** | ⚠️ 配置凭据 + 免密 sudo（第 6、7 章） |
-| **待办 4** | ⚠️ 创建 Pipeline 任务（第 8 章） |
+| Git 分支 | `main` |
+| Jenkins 流水线 | 仓库根目录的 `Jenkinsfile` |
+| 自动部署 | `deploy/ci-deploy.sh`，包括备份、同步、重启、健康检查和失败回滚 |
+| 构建结果验证 | 首页/API/版本文件 HTTP 检查及前后端版本一致性检查 |
 
 ---
 
-## 第 0 章：先把代码推上 GitHub（你的环境有代理问题）
+## 日常流程：Git 提交到 Jenkins 部署
+
+日常开发从 Windows 项目目录操作。每次只暂存本次相关文件，确认暂存区后提交并推送：
+
+```bash
+git status
+# 将路径替换为本次改动的文件，例如 git add frontend/index.html
+git add frontend/index.html
+git diff --cached
+git commit -m "feat: 描述本次改动"
+git push origin main
+```
+
+推送成功后，Jenkins 通过任务已配置的触发方式发现 `main` 上的新提交并运行流水线。第一次推送需要建立 upstream 时使用 `git push -u origin main`；之后通常使用 `git push origin main`。
+
+Jenkins 的执行顺序：
+
+1. **拉取代码**：检出 GitHub 上的提交，记录 commit 信息。
+2. **环境检查**：检查 Node、Nginx、端口和部署目录权限。
+3. **部署前检查**：确认前后端文件存在，并用 `node --check` 检查后端语法。
+4. **生成版本信息**：调用 `deploy/gen-version.sh` 写入构建号、分支、commit 和构建时间。
+5. **执行部署**：`deploy/ci-deploy.sh` 备份现有版本、同步前后端、重启两个 API 服务并重载 Nginx。
+6. **健康检查与回滚**：检查两个后端及 Nginx API；部署健康检查失败时尝试恢复备份。
+7. **冒烟测试**：检查首页、API、版本文件均返回 HTTP 200，并确认前端版本与 `/api/version` 一致。
+8. **构建收尾**：Jenkins 控制台显示成功或失败；清理工作区。
+
+**验证本次提交已上线**：在 Jenkins 构建记录中查看对应 commit 和各阶段结果，再打开 `http://localhost` 查看部署信息面板中的 commit、分支及构建号。也可执行：
+
+```bash
+curl -s http://localhost/version.json
+curl -s http://localhost/api/version
+```
+
+两个响应中的版本应与本次构建相符。失败时先看 Jenkins Console Output；部署健康检查失败时查看 `journalctl -u api-server1`、`journalctl -u api-server2` 和 Nginx 错误日志。
+
+---
+
+## 第 0 章：首次推送与 GitHub 连通性排障
+
+本章用于首次建立 GitHub 连接，或后续推送遇到网络/认证错误时排查；正常日常提交直接按本文“日常流程”操作。
 
 ### 0.1 你会遇到什么
 
-已实测确认你的网络环境：
+推送失败时先区分网络连接与认证问题。曾遇到的网络错误示例：
 
 ```
 $ git push -u origin main
@@ -36,7 +69,7 @@ fatal: unable to access 'https://github.com/yuxmgit/nginx-test-wsl.git/':
 CONNECT tunnel failed, response 502
 ```
 
-**根因**（已逐项排查）：
+遇到类似错误时，可按以下项目检查代理或网络连通性：
 
 | 检查项 | 结果 |
 |---|---|
@@ -46,7 +79,7 @@ CONNECT tunnel failed, response 502
 | 走环境变量代理（WorkBuddy 内部 52670） | ❌ `CONNECT tunnel failed, 502`（内部代理不放行 github） |
 | SSH 22 端口 | ❌ 不通 |
 
-**结论：你的代理软件没开。** 这是推送失败的根本原因，不是 Git 配置问题。
+代理端口未监听或代理不可用时，先启动/修复代理；如果网络可达但认证失败，再检查 GitHub 凭据。
 
 ### 0.2 方案 A：启动代理软件后推送（推荐）
 
@@ -211,7 +244,7 @@ git push -u origin main
             ▼
    git push  →  GitHub 仓库（main 分支）
             │
-            │  ① Webhook 通知（Jenkins 主动轮询 GitHub）
+            │  ① 按 Jenkins 任务配置的触发方式发现新提交（Webhook 或 Poll SCM）
             ▼
         Jenkins（跑在同一个 WSL Ubuntu 里）
             │
@@ -326,68 +359,39 @@ WSL Ubuntu:
 ```bash
 # 在 WSL Ubuntu 里
 mkdir -p ~/dev && cd ~/dev
-git clone https://github.com/yuxmgit/nginx-test-wsl.git
+git clone git@github.com:yuxmgit/nginx-test-wsl.git
 ```
 
 **下面教程以"Windows 编辑 + WSL 部署"的组合为主线**，这是你现在的实际状态。
 
 ### 3.2 仓库初始化（✅ 已完成）
 
-你的仓库**已经初始化好了**，无需重复执行。现状如下：
+仓库已初始化并关联远程仓库，日常不需要重复执行 `git init` 或 `git remote add`。查看当前分支和远程配置：
 
 ```bash
-cd /i/练习/nginx
-
 git branch -vv
-# * main 62fec71 Refactor code structure for improved readability and maintainability
 
 git remote -v
-# origin  https://github.com/yuxmgit/nginx-test-wsl.git (fetch)
-# origin  https://github.com/yuxmgit/nginx-test-wsl.git (push)
 
 git log --oneline
-# 62fec71 Refactor code structure for improved readability and maintainability
-# 71fe358 first commit
 ```
 
-已配置的身份：
+当前远程地址以 `git remote -v` 的输出为准；本仓库的日常分支为 `main`。如果在一个新克隆或新分支上首次推送，使用 `git push -u origin main` 建立 upstream。
 
-| 项 | 值 |
-|---|---|
-| `user.name` | `yuxiangming` |
-| `user.email` | `yuxiangming@ata.net.cn` |
-| 默认分支 | `main`（已从 master 重命名过） |
+### 3.3 日常提交与推送
 
-> ⚠️ **一个坑**：`main` 分支目前**没有设置 upstream**（`git branch -vv` 里没有 `-> origin/main`），
-> 所以直接 `git push` 会报 `fatal: The current branch main has no upstream branch`。
-> 第 0.6 节的 `git push -u origin main` 里的 `-u` 就是解决这个的。
-
-### 3.3 关联远程仓库并推送（⏳ 待办）
-
-`remote origin` 已配置好，**不需要再执行 `git remote add`**（重复执行会报 `remote origin already exists`）。
-
-只需要完成首次推送，见 **第 0 章**。完整的首次推送流程：
+仓库已关联 `origin` 和 `main`。日常改动按以下步骤提交推送：
 
 ```bash
-cd /i/练习/nginx
-
-# 1) 先配代理（否则会报 CONNECT tunnel failed 502）
-git config --global http.proxy  http://127.0.0.1:7890   # 换成你的实际代理端口
-git config --global https.proxy http://127.0.0.1:7890
-
-# 2) 验证连通
-git ls-remote origin
-
-# 3) 提交本次新增的 CI/CD 文件
-git add .
-git status              # 确认清单
-git commit -m "ci: 添加 Jenkinsfile、CI 自动部署脚本与部署指南"
-
-# 4) 推送并建立 upstream
-git push -u origin main
+git status
+# 将路径替换为本次改动的文件，例如 git add frontend/index.html
+git add frontend/index.html
+git diff --cached
+git commit -m "类型: 简要描述"
+git push origin main
 ```
 
-推送成功后打开 GitHub 仓库页面，应该能看到 `backend/`、`frontend/`、`deploy/`、`Jenkinsfile`、`.gitignore` 这几个目录/文件。
+首次推送或本地分支尚未关联远程分支时，使用 `git push -u origin main` 建立 upstream。推送成功后 Jenkins 会按任务触发器开始处理新提交，完整阶段见本文“日常流程”。
 
 > **`git add .` 之前务必 `git status` 看一眼**。`.gitignore` 已经排除了
 > `nginx-1.27.2/`、`nginx.zip`、`*.log`、`.workbuddy/`、`outputs/`，
@@ -710,15 +714,14 @@ Webhook 触发时（见第 9 章）只有被推送的分支会跑构建。
 
 > 📖 **本章已精简，详细内容见独立文档：[`deploy/jenkins-auto-trigger.md`](jenkins-auto-trigger.md)**
 
-### 9.0 先看清硬约束
+### 9.0 触发方式
 
-Jenkins 跑在 WSL 里，地址 `172.18.32.10:8080` 是 **WSL2 的 NAT 内网地址**，
-GitHub 在公网**够不到**你的机器。这直接决定了：
+触发方式由 Jenkins 任务的配置决定。Webhook 需要 GitHub 能访问 Jenkins 的 webhook 地址；若 Jenkins 在 WSL NAT 内且没有公网入口，则使用 Poll SCM。不要仅凭“推送成功”判断触发成功，应在 Jenkins 构建历史中确认本次 commit 已启动构建。
 
 | 方式 | 通信方向 | 你的环境 |
 |---|---|---|
-| Webhook（GitHub 主动推） | GitHub → Jenkins | ❌ 需要公网入口 |
-| **Poll SCM（Jenkins 主动查）** | Jenkins → GitHub | ✅ **完全可行** |
+| Webhook（GitHub 主动推） | GitHub → Jenkins | Jenkins webhook 地址可从 GitHub 访问时使用 |
+| Poll SCM（Jenkins 主动查） | Jenkins → GitHub | 无需公网入口，按轮询间隔发现提交 |
 
 ### 9.1 一键诊断当前状态
 
@@ -730,9 +733,9 @@ bash deploy/jenkins-diagnose.sh
 依次检查：Jenkins 服务 → 任务是否存在 → 触发器配置 → GitHub 连通性 → webhook 状态，
 并直接告诉你该用哪个方案。
 
-### 9.2 方案 A：Poll SCM（推荐，5 分钟）
+### 9.2 方案 A：Poll SCM
 
-任务 → **Configure** → **Build Triggers** → 勾 **Poll SCM** → 填：
+如果使用 Poll SCM：任务 → **Configure** → **Build Triggers** → 勾 **Poll SCM** → 填：
 
 ```
 H/2 * * * *
@@ -794,24 +797,29 @@ curl -sI --max-time 10 https://github.com | head -1   # 验证
 
 > 端口 7890 换成你代理软件的实际端口。
 
-### 9.5 端到端验证（最有说服力）
+### 9.5 端到端验证
 
 ```bash
-# 1. 记下当前版本号
+# 1. 记录当前部署版本
 curl -s http://localhost/version.json | grep version
 
-# 2. 改一行 frontend/index.html
+# 2. 修改并提交本次要验证的文件
+git status
+git add frontend/index.html
+git diff --cached
+git commit -m "test: 验证 Jenkins 自动部署"
 
-# 3. 推送
-git add . && git commit -m "feat: 验证自动触发" && git push origin main
+# 3. 推送到 Jenkins 任务配置的分支
+git push origin main
 
-# 4. 等 1~2 分钟（等 Jenkins 轮询到）
+# 4. 在 Jenkins 确认构建对应到刚推送的 commit，等待流水线结束
 
-# 5. 再看版本号，应该变了
+# 5. 检查新的部署版本和 API
 curl -s http://localhost/version.json | grep version
+curl -s http://localhost/api/version
 ```
 
-**两个版本号不同 = 整条链路完全打通。**
+构建通过且部署信息中的 commit 对应本次提交，首页/API 可访问且前后端版本一致，即表示端到端流程通过。
 
 ---
 

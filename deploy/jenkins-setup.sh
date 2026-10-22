@@ -77,7 +77,8 @@ USER_HOME="$(getent passwd "$RUN_USER" | cut -d: -f6)"
 [ -d "$DEPLOY_DIR" ] || install -d -o "$RUN_USER" -g "$(id -gn "$RUN_USER")" -m 0755 "$DEPLOY_DIR"
 setfacl -m u:jenkins:--x "$USER_HOME"
 setfacl -R -m u:jenkins:rwX "$DEPLOY_DIR"
-find "$DEPLOY_DIR" -type d -exec setfacl -m d:u:jenkins:rwX {} +
+setfacl -R -m "u:$RUN_USER:rX" "$DEPLOY_DIR"
+find "$DEPLOY_DIR" -type d -exec setfacl -m d:u:jenkins:rwX -m "d:u:$RUN_USER:rX" {} +
 install -d -o jenkins -g jenkins -m 0750 "$JENKINS_HOME_DIR/deploy-backups"
 ok "Jenkins 可访问并更新 $DEPLOY_DIR"
 

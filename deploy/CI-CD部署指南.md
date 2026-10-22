@@ -873,7 +873,7 @@ git add . && git commit -m "test: 故意制造语法错误" && git push
 | `fatal: could not read Username` | HTTPS 没配凭据 | 用 token 作密码，或改用 SSH |
 | `Host key verification failed` | 首次连接未确认 host key | `sudo -u jenkins ssh -T git@github.com` 手动确认一次 |
 | `sudo: I'm sorry jenkins. I'm afraid I can't do that` | Jenkinsfile 正在用 sudo 执行工作区脚本 | 用最新版 Jenkinsfile：脚本以 jenkins 用户运行；按第 7 章重新运行环境配置脚本 |
-| `rsync: chgrp ... Operation not permitted`、`failed to set times` 或设置权限失败 | Jenkins 无权修改目标文件的属主、组、权限或时间戳 | 使用新版 `ci-deploy.sh`：同步改为 `rsync -rl`，只递归同步文件和符号链接，不保留源文件元数据；提交并推送后重新构建 |
+| `rsync: chgrp ... Operation not permitted`、`failed to set times` 或 `chmod: changing permissions ... Operation not permitted` | Jenkins 无权修改部署目录的属主、组、权限或时间戳 | 使用新版 `ci-deploy.sh`（同步用 `rsync -rl`，不再手动 chmod），并重新运行 `jenkins-setup.sh` 更新部署用户读取 ACL；提交并推送后重新构建 |
 | `nginx: [emerg] invalid number of arguments` | nginx 配置语法错 | `sudo nginx -t` 看具体行号 |
 | `500 Internal Server Error` | 后端进程挂了 | `journalctl -u api-server1 -n 50` |
 | `502 Bad Gateway` | nginx 连不上后端 | 确认 4001/4002 端口在监听 |

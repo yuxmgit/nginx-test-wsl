@@ -104,9 +104,6 @@ rsync -rl --delete \
 rsync -rl --delete \
     --exclude '.git/' \
     "$SRC_DIR/frontend/" "$DEST_DIR/frontend/"
-chmod +r "$DEST_DIR"/backend/*.js
-chmod 644 "$DEST_DIR"/frontend/version.json 2>/dev/null || true
-chmod 755 "$DEST_DIR"
 ok "代码同步完成"
 
 # ---------- 3. 检查 systemd unit ----------

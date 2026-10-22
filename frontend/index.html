@@ -16,6 +16,16 @@
         .container { max-width: 900px; margin: 0 auto; }
         h1 { text-align: center; margin-bottom: 10px; color: #e94560; }
         .subtitle { text-align: center; color: #888; margin-bottom: 30px; }
+        .webhook-banner {
+            margin: 0 auto 24px;
+            padding: 12px 18px;
+            border: 1px solid rgba(88,214,141,0.4);
+            border-radius: 8px;
+            background: rgba(88,214,141,0.1);
+            color: #58d68d;
+            text-align: center;
+            font-size: 14px;
+        }
         .card {
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
@@ -199,6 +209,7 @@
 <div class="container">
     <h1>前后端分离 - Nginx 负载均衡演示</h1>
     <p class="subtitle">前端静态文件由 Nginx 直接提供 | 后端 API 由 Nginx 负载均衡到两台服务器</p>
+    <div class="webhook-banner">Webhook 自动部署测试：此页面已更新，用于验证 GitHub 推送是否触发 Jenkins 部署</div>
 
     <!-- ===== 部署信息面板：验证 CI/CD 流水线 ===== -->
     <div class="card build-card">

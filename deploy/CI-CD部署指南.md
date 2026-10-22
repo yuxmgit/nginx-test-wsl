@@ -174,7 +174,7 @@ git push -u origin main
 - [第 6 章：配置 GitHub 凭据](#第-6-章配置-github-凭据)
 - [第 7 章：配置免密 sudo（关键）](#第-7-章配置免密-sudo关键)
 - [第 8 章：创建 Jenkins 任务](#第-8-章创建-jenkins-任务)
-- [第 9 章：配置 Webhook 实现推送即部署](#第-9-章配置-webhook-实现推送即部署)
+- [第 9 章：配置自动触发（git push → 自动构建）](#第-9-章配置自动触发git-push--自动构建)
 - [第 10 章：验证与排错](#第-10-章验证与排错)
 - [附录 A：完整命令速查](#附录-a完整命令速查)
 - [附录 A-1：最短路径行动清单](#附录-a-1最短路径行动清单照着做就行)
@@ -192,6 +192,8 @@ git push -u origin main
 | `deploy/gen-version.sh` | 生成 `version.json`，把构建信息注入前端 |
 | `deploy/jenkins-setup.sh` | Jenkins 一键安装 + 部署目录 ACL + 受限 sudo + SSH 密钥 |
 | `deploy/git-proxy-check.sh` | GitHub 连通性诊断 + 代理自动配置 |
+| `deploy/jenkins-diagnose.sh` | 自动触发链路诊断（服务/任务/触发器/连通性/webhook） |
+| `deploy/jenkins-auto-trigger.md` | 自动触发完整指南（Poll SCM / ngrok / 自托管 Runner） |
 | `deploy/CI-CD部署指南.md` | 本文档 |
 | `frontend/version.json.template` | 版本信息模板（手动部署时兜底用） |
 | `.gitignore` | 排除 nginx 二进制、日志、密钥、`.workbuddy/`、构建产物 |
@@ -704,84 +706,112 @@ Webhook 触发时（见第 9 章）只有被推送的分支会跑构建。
 
 ---
 
-## 第 9 章：配置 Webhook 实现推送即部署
+## 第 9 章：配置自动触发（git push → 自动构建）
 
-### 9.1 GitHub 侧创建 Webhook
+> 📖 **本章已精简，详细内容见独立文档：[`deploy/jenkins-auto-trigger.md`](jenkins-auto-trigger.md)**
 
-1. 打开仓库 → **Settings** → **Webhooks** → **Add webhook**
-2. **Payload URL**：
-   ```text
-   http://localhost:8080/github-webhook/
-   ```
-   > ⚠️ `localhost` 是相对于 GitHub 服务器的！GitHub 在公网，访问不到你本机的 localhost。
-   >
-   > **解决办法（按环境选一个）：**
-   > - **方案 1：隧道**（最省事）—— 用 ngrok：
-   >   ```bash
-   >   ngrok http 8080
-   >   # 得到 https://xxxx.ngrok-free.app
-   >   ```
-   >   把这个地址填进 Payload URL，Content type 选 `application/json`。
-   > - **方案 2：公网服务器** —— 把 Jenkins 部署到有公网 IP 的机器上。
-   > - **方案 3：放弃 Webhook，用轮询**（见 9.3），完全不需要公网入口。
-   > - **方案 4：GitHub Actions 触发 Jenkins** —— 见 9.4。
-3. **Content type**：`application/json`
-4. **Secret**：填一个随机串，比如 `myjenkinssecret2024`（勾上 SSL 验证也填这个）
-5. **Which events** → 选 **Just the push event**
-6. 点 **Add webhook**
+### 9.0 先看清硬约束
 
-### 9.2 Jenkins 侧接收 Webhook
+Jenkins 跑在 WSL 里，地址 `172.18.32.10:8080` 是 **WSL2 的 NAT 内网地址**，
+GitHub 在公网**够不到**你的机器。这直接决定了：
 
-安装 **GitHub plugin** 后，Jenkins 通常自动在 `http://localhost:8080/github-webhook/` 挂上端点。
+| 方式 | 通信方向 | 你的环境 |
+|---|---|---|
+| Webhook（GitHub 主动推） | GitHub → Jenkins | ❌ 需要公网入口 |
+| **Poll SCM（Jenkins 主动查）** | Jenkins → GitHub | ✅ **完全可行** |
 
-如果 404，检查插件是否启用：`Manage Jenkins` → Plugins → Installed → 找 `GitHub plugin`。
+### 9.1 一键诊断当前状态
 
-### 9.3 方案：不用 Webhook，改用轮询（最省心，强烈建议先跑通这个）
+```bash
+# WSL Ubuntu 里
+bash deploy/jenkins-diagnose.sh
+```
 
-**GitHub plugin** 提供的 **GitHub Hook trigger for GITScm polling** 本身支持轮询：
-在多分支流水线里，`Scan Organization Triggers` 设为 `1 min`，Jenkins 会自己去查 GitHub 有没有新提交。
+依次检查：Jenkins 服务 → 任务是否存在 → 触发器配置 → GitHub 连通性 → webhook 状态，
+并直接告诉你该用哪个方案。
 
-如果是单分支 Pipeline，用 **Poll SCM** 构建触发器：
+### 9.2 方案 A：Poll SCM（推荐，5 分钟）
 
-`nginx-deploy` → **构建触发器** → 勾 **轮询 SCM** → 填：
+任务 → **Configure** → **Build Triggers** → 勾 **Poll SCM** → 填：
 
 ```
 H/2 * * * *
 ```
 
-意思是每 2 分钟检查一次。语法是标准 cron 格式（分 时 日 月 周）。
+前提三件套（缺一不可）：
 
-### 9.4 方案：GitHub Actions 触发 Jenkins（保留 GitHub 原生 UI）
+1. **Definition 选 `Pipeline script from SCM`**，Branch 填 `*/main`（不是 master）
+2. **WSL 里能访问 GitHub** —— Windows 的代理不会自动给 WSL，需单独配（见 9.4）
+3. **Jenkins 凭据可用** —— `sudo -u jenkins ssh -T git@github.com` 能通过
 
-在仓库建 `.github/workflows/deploy.yml`：
+### 9.3 想秒级触发？两个选择
 
-```yaml
-name: Trigger Jenkins Deploy
+| | ngrok 隧道 | 自托管 Runner |
+|---|---|---|
+| 延迟 | 秒级 | 秒级 |
+| 需要公网 | 是（隧道给） | 否 |
+| 额外安装 | ngrok | Actions Runner |
+| 稳定性 | 隧道断就断 | 高 |
 
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
+**ngrok 隧道**：
 
-jobs:
-  trigger:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Jenkins build
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer ${{ secrets.JENKINS_TOKEN }}" \
-            "${{ secrets.JENKINS_URL }}/job/nginx-deploy/buildWithParameters"
+```bash
+ngrok http 8080
+# Forwarding https://a1b2c3d4.ngrok-free.app -> http://localhost:8080
 ```
 
-然后在 GitHub 仓库 **Settings** → **Secrets and variables** → **Actions** 里加两个 secret：
+GitHub webhook 的 Payload URL 填 `https://a1b2c3d4.ngrok-free.app/github-webhook/`
+（**末尾斜杠必须有**），Jenkins 侧勾选 **GitHub hook trigger for GITScm polling**。
 
-| Name | Value |
-|---|---|
-| `JENKINS_URL` | `http://你的Jenkins地址:8080` |
-| `JENKINS_TOKEN` | Jenkins 用户的 API Token |
+> ⚠️ 免费版 ngrok URL 每次重启都变，webhook 会失效。要固定域名需在 ngrok 后台申请。
 
-API Token 获取：Jenkins 右上角头像 → **Security** → **API Token** → **Generate new token**。
+**GitHub Actions + 自托管 Runner**（无需公网）：
+
+在 WSL 注册 Runner，Runner 跑在本机就能直接调 `localhost:8080` 的 Jenkins API，
+GitHub 把任务派发给它，闭环全在本机。详细步骤见自动触发文档方案 C。
+
+### 9.4 WSL 里的代理配置
+
+Windows 的代理**不会**自动给 WSL 用，需要单独配：
+
+```bash
+WIN_HOST=$(ip route show default | awk '{print $3}')
+
+cat >> ~/.bashrc << EOF
+export http_proxy=http://${WIN_HOST}:7890
+export https_proxy=http://${WIN_HOST}:7890
+export no_proxy=localhost,127.0.0.1
+EOF
+
+sudo tee /etc/apt/apt.conf.d/99proxy > /dev/null << EOF
+Acquire::http::Proxy "http://${WIN_HOST}:7890";
+Acquire::https::Proxy "http://${WIN_HOST}:7890";
+EOF
+
+source ~/.bashrc
+curl -sI --max-time 10 https://github.com | head -1   # 验证
+```
+
+> 端口 7890 换成你代理软件的实际端口。
+
+### 9.5 端到端验证（最有说服力）
+
+```bash
+# 1. 记下当前版本号
+curl -s http://localhost/version.json | grep version
+
+# 2. 改一行 frontend/index.html
+
+# 3. 推送
+git add . && git commit -m "feat: 验证自动触发" && git push origin main
+
+# 4. 等 1~2 分钟（等 Jenkins 轮询到）
+
+# 5. 再看版本号，应该变了
+curl -s http://localhost/version.json | grep version
+```
+
+**两个版本号不同 = 整条链路完全打通。**
 
 ---
 

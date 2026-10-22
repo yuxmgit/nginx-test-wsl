@@ -18,11 +18,13 @@ nginx-test-wsl/
 │   ├── ci-deploy.sh          # CI 无人值守部署（失败自动回滚）
 │   ├── gen-version.sh        # 生成 version.json（构建信息注入）
 │   ├── jenkins-setup.sh      # Jenkins 一键安装 + 免密 sudo
+│   ├── jenkins-diagnose.sh   # 自动触发链路诊断
 │   ├── git-proxy-check.sh    # GitHub 连通性诊断 + 代理配置
 │   ├── uninstall.sh          # 卸载清理
 │   ├── lab-troubleshoot.sh   # 故障排查实验脚本
 │   ├── README.md             # 部署指南
-│   └── CI-CD部署指南.md      # GitHub + Jenkins 自动部署教程
+│   ├── CI-CD部署指南.md      # GitHub + Jenkins 自动部署教程
+│   └── jenkins-auto-trigger.md  # 自动触发配置（Poll SCM / ngrok / Runner）
 ├── Jenkinsfile               # Jenkins 声明式流水线
 └── .gitignore
 ```
@@ -45,7 +47,19 @@ git push origin main
 ```
 
 Jenkins 会自动拉取代码、语法预检、rsync 同步、重启服务并做健康检查。
-详见 [`deploy/CI-CD部署指南.md`](deploy/CI-CD部署指南.md)。
+
+**触发方式**：因 Jenkins 跑在 WSL（NAT 内网地址），GitHub 无法直接推送 Webhook，
+故推荐 **Poll SCM 轮询**（每 2 分钟检查一次新提交）。
+配置步骤与其它方案见 [`deploy/jenkins-auto-trigger.md`](deploy/jenkins-auto-trigger.md)。
+
+**诊断当前触发链路**：
+
+```bash
+# WSL Ubuntu 里
+bash deploy/jenkins-diagnose.sh
+```
+
+完整教程见 [`deploy/CI-CD部署指南.md`](deploy/CI-CD部署指南.md)。
 
 ## 访问地址
 

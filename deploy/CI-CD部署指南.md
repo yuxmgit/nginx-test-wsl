@@ -1041,6 +1041,8 @@ curl -s http://localhost/api/version | python3 -m json.tool
 # 两者 version 字段应完全一致
 ```
 
+Jenkinsfile 使用 Node 解析 JSON，不依赖 `"version"` 冒号两侧是否有空格；生成的 `version.json` 是格式化 JSON，不能用只匹配 `"version":"..."` 的 grep 提取。
+
 ---
 
 ## 下一步可以做什么

@@ -152,15 +152,33 @@ pipeline {
                 '''
                 // 校验后端返回的版本与本次构建一致
                 sh '''
-                    set -e
+                    set -euo pipefail
                     echo "===== 版本一致性校验 ====="
-                    FRONTEND_VERSION=$(curl -s --max-time 5 http://localhost/version.json | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                    FRONTEND_VERSION=$(curl -fsS --max-time 5 http://localhost/version.json | node -e '
+                        let body = "";
+                        process.stdin.setEncoding("utf8");
+                        process.stdin.on("data", chunk => body += chunk);
+                        process.stdin.on("end", () => {
+                            const info = JSON.parse(body);
+                            if (typeof info.version !== "string" || !info.version) process.exit(1);
+                            process.stdout.write(info.version);
+                        });
+                    ')
                     echo "前端 version.json : $FRONTEND_VERSION"
 
-                    BACKEND_VERSION=$(curl -s --max-time 5 http://localhost/api/version | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
+                    BACKEND_VERSION=$(curl -fsS --max-time 5 http://localhost/api/version | node -e '
+                        let body = "";
+                        process.stdin.setEncoding("utf8");
+                        process.stdin.on("data", chunk => body += chunk);
+                        process.stdin.on("end", () => {
+                            const response = JSON.parse(body);
+                            const version = response.data && response.data.version;
+                            if (typeof version !== "string" || !version) process.exit(1);
+                            process.stdout.write(version);
+                        });
+                    ')
                     echo "后端 /api/version : $BACKEND_VERSION"
 
-                    [ -n "$FRONTEND_VERSION" ] || { echo "前端版本信息为空"; exit 1; }
                     [ "$FRONTEND_VERSION" = "$BACKEND_VERSION" ] || {
                         echo "版本不一致！前端=$FRONTEND_VERSION 后端=$BACKEND_VERSION"
                         exit 1

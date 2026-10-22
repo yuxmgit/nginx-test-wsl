@@ -87,12 +87,12 @@ fi
 # ---------- 2. 同步代码 ----------
 log "步骤 2/5  同步 backend/ frontend/ 到 $DEST_DIR"
 mkdir -p "$DEST_DIR/logs"
-rsync -a --chmod=F664,D775 --delete \
+rsync -rlt --delete \
     --exclude 'logs/' \
     --exclude '*.log' \
     --exclude '.git/' \
     "$SRC_DIR/backend/"  "$DEST_DIR/backend/"
-rsync -a --chmod=F664,D775 --delete \
+rsync -rlt --delete \
     --exclude '.git/' \
     "$SRC_DIR/frontend/" "$DEST_DIR/frontend/"
 chmod +r "$DEST_DIR"/backend/*.js
@@ -160,8 +160,8 @@ if [ "$PASS" != "1" ]; then
     echo ""
     warn "健康检查未通过，尝试回滚到备份版本"
     if [ -d "$BACKUP_DIR/backend" ]; then
-        rsync -a --delete "$BACKUP_DIR/backend/"  "$DEST_DIR/backend/"
-        rsync -a --delete "$BACKUP_DIR/frontend/" "$DEST_DIR/frontend/"
+        rsync -rlt --delete "$BACKUP_DIR/backend/"  "$DEST_DIR/backend/"
+        rsync -rlt --delete "$BACKUP_DIR/frontend/" "$DEST_DIR/frontend/"
         sudo -n /usr/bin/systemctl restart api-server1 api-server2 || true
         sudo -n /usr/bin/systemctl reload nginx || true
         echo "已回滚到 $BACKUP_DIR"

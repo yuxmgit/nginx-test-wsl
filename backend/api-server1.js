@@ -1,7 +1,19 @@
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 const PORT = 4001;
 const SERVER_NAME = '服务器A';
+
+// 读取部署时由 Jenkins 写入的版本信息（位于 frontend/version.json）
+function readVersionInfo() {
+    const versionFile = path.resolve(__dirname, '..', 'frontend', 'version.json');
+    try {
+        return JSON.parse(fs.readFileSync(versionFile, 'utf8'));
+    } catch (err) {
+        return { version: 'unknown', shortCommit: 'unknown', error: err.message };
+    }
+}
 
 const data = {
     '/api/user': {
@@ -38,6 +50,20 @@ const server = http.createServer((req, res) => {
     });
 
     const route = req.url.split('?')[0];
+
+    // 运行时版本查询：后端进程也报出当前部署的版本
+    if (route === '/api/version') {
+        const info = readVersionInfo();
+        res.end(JSON.stringify({
+            code: 200,
+            message: 'success',
+            server: SERVER_NAME,
+            port: PORT,
+            data: info
+        }));
+        return;
+    }
+
     const body = data[route];
 
     if (body) {

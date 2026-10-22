@@ -98,7 +98,28 @@ pipeline {
             }
         }
 
-        // ========== 阶段 4：执行部署 ==========
+        // ========== 阶段 4：生成版本信息 ==========
+        stage('生成版本信息') {
+            steps {
+                sh '''
+                    set -e
+                    # 版本号规则：v1.0.<构建号>，分支名也带进去便于区分环境
+                    BRANCH_NAME="${BRANCH_NAME:-${GIT_BRANCH:-main}}"
+                    VERSION="v1.0.${BUILD_NUMBER}-${BRANCH_NAME}"
+
+                    bash deploy/gen-version.sh \
+                        frontend/version.json \
+                        "$VERSION" \
+                        "${GIT_COMMIT:-unknown}" \
+                        "$BRANCH_NAME" \
+                        "$(date -u '+%Y-%m-%d %H:%M:%S UTC')" \
+                        "${BUILD_NUMBER}" \
+                        "${BUILD_USER_ID:-jenkins}"
+                '''
+            }
+        }
+
+        // ========== 阶段 5：执行部署 ==========
         stage('执行部署') {
             steps {
                 sh '''
@@ -117,17 +138,34 @@ pipeline {
             }
         }
 
-        // ========== 阶段 5：冒烟测试 ==========
+        // ========== 阶段 6：冒烟测试 ==========
         stage('冒烟测试') {
             steps {
                 sh '''
                     set -e
-                    for url in http://localhost/ http://localhost/api/user http://localhost/api/products; do
+                    for url in http://localhost/ http://localhost/api/user http://localhost/api/products http://localhost/version.json; do
                         CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$url")
                         echo "$url -> $CODE"
                         [ "$CODE" = "200" ] || { echo "冒烟测试失败: $url"; exit 1; }
                     done
                     echo "冒烟测试全部通过"
+                '''
+                // 校验后端返回的版本与本次构建一致
+                sh '''
+                    set -e
+                    echo "===== 版本一致性校验 ====="
+                    FRONTEND_VERSION=$(curl -s --max-time 5 http://localhost/version.json | grep -o '"version":"[^"]*"' | cut -d'"' -f4)
+                    echo "前端 version.json : $FRONTEND_VERSION"
+
+                    BACKEND_VERSION=$(curl -s --max-time 5 http://localhost/api/version | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4)
+                    echo "后端 /api/version : $BACKEND_VERSION"
+
+                    [ -n "$FRONTEND_VERSION" ] || { echo "前端版本信息为空"; exit 1; }
+                    [ "$FRONTEND_VERSION" = "$BACKEND_VERSION" ] || {
+                        echo "版本不一致！前端=$FRONTEND_VERSION 后端=$BACKEND_VERSION"
+                        exit 1
+                    }
+                    echo "版本一致：$FRONTEND_VERSION"
                 '''
             }
         }

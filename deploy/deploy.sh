@@ -88,6 +88,15 @@ mkdir -p "$INSTALL_DIR"
 cp -a "$PROJECT_SRC/backend"  "$INSTALL_DIR/"
 cp -a "$PROJECT_SRC/frontend" "$INSTALL_DIR/"
 mkdir -p "$INSTALL_DIR/logs"
+
+# 手动部署没有 Jenkins 写版本信息，这里用模板兜底，保证前端面板不 404
+if [ ! -f "$INSTALL_DIR/frontend/version.json" ]; then
+    if [ -f "$INSTALL_DIR/frontend/version.json.template" ]; then
+        cp "$INSTALL_DIR/frontend/version.json.template" "$INSTALL_DIR/frontend/version.json"
+        echo "    已用模板生成 frontend/version.json（手动部署无构建信息）"
+    fi
+fi
+
 echo "    项目已安装到 $INSTALL_DIR"
 ls -la "$INSTALL_DIR"
 

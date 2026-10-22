@@ -87,6 +87,15 @@ fi
 # ---------- 2. 同步代码 ----------
 log "步骤 2/5  同步 backend/ frontend/ 到 $DEST_DIR"
 mkdir -p "$DEST_DIR/logs"
+
+# 兜底：源目录没有 version.json 时（未跑 Jenkins 的"生成版本信息"阶段），
+# 用模板补一个。否则 rsync --delete 会把目标端已有的 version.json 一并删掉，
+# 前端版本面板就会 404。
+if [ ! -f "$SRC_DIR/frontend/version.json" ] && [ -f "$SRC_DIR/frontend/version.json.template" ]; then
+    cp "$SRC_DIR/frontend/version.json.template" "$SRC_DIR/frontend/version.json"
+    warn "源目录缺少 version.json，已用模板生成占位文件"
+fi
+
 rsync -rl --delete \
     --exclude 'logs/' \
     --exclude '*.log' \
@@ -96,6 +105,8 @@ rsync -rl --delete \
     --exclude '.git/' \
     "$SRC_DIR/frontend/" "$DEST_DIR/frontend/"
 chmod +r "$DEST_DIR"/backend/*.js
+chmod 644 "$DEST_DIR"/frontend/version.json 2>/dev/null || true
+chmod 755 "$DEST_DIR"
 ok "代码同步完成"
 
 # ---------- 3. 检查 systemd unit ----------

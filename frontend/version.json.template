@@ -1,0 +1,9 @@
+{
+  "version": "v1.0.0-dev",
+  "commit": "unknown",
+  "shortCommit": "unknown",
+  "branch": "main",
+  "buildTime": "未经过 Jenkins 构建，为本地手动部署",
+  "buildNumber": "local",
+  "builtBy": "local"
+}

@@ -10,10 +10,15 @@ nginx-test-wsl/
 │   ├── api-server1.js        # API 服务器 A，监听 4001
 │   └── api-server2.js        # API 服务器 B，监听 4002
 ├── frontend/
-│   └── index.html            # 前端页面，通过 /api/ 反向代理访问后端
+│   ├── index.html            # 前端页面，通过 /api/ 反向代理访问后端
+│   ├── version.json          # 部署版本信息（构建时生成，不入库）
+│   └── version.json.template # 版本信息模板（手动部署时兜底）
 ├── deploy/
 │   ├── deploy.sh             # 人工一键部署（首次安装 nginx / systemd）
 │   ├── ci-deploy.sh          # CI 无人值守部署（失败自动回滚）
+│   ├── gen-version.sh        # 生成 version.json（构建信息注入）
+│   ├── jenkins-setup.sh      # Jenkins 一键安装 + 免密 sudo
+│   ├── git-proxy-check.sh    # GitHub 连通性诊断 + 代理配置
 │   ├── uninstall.sh          # 卸载清理
 │   ├── lab-troubleshoot.sh   # 故障排查实验脚本
 │   ├── README.md             # 部署指南
@@ -46,6 +51,25 @@ Jenkins 会自动拉取代码、语法预检、rsync 同步、重启服务并做
 
 - 前端页面：<http://localhost>
 - 接口示例：<http://localhost/api/user>、<http://localhost/api/products>
+- 版本查询：<http://localhost/api/version>、<http://localhost/version.json>
+
+## 部署信息面板
+
+首页顶部的绿色面板显示当前线上跑的是哪一次构建：
+
+| 字段 | 来源 |
+|---|---|
+| 版本号 | `v1.0.<构建号>-<分支>`，由 Jenkins 生成 |
+| Git Commit | 本次构建的 commit SHA |
+| 分支 | 触发构建的分支 |
+| 构建号 | Jenkins `BUILD_NUMBER` |
+| 构建时间 | 构建时刻（UTC） |
+| 构建者 | 触发构建的 Jenkins 用户 |
+
+数据来自部署时由 Jenkins 写入的 `frontend/version.json`。
+**每次 `git push` 后，刷新页面就能看到版本号和 Commit 变化** —— 这是验证 CI/CD 链路是否真正跑通的最直接方式。
+
+后端也提供 `/api/version` 接口，页面会对比前后端版本是否一致（不一致会标红）。
 
 ## 常用运维命令
 

@@ -39,6 +39,11 @@ tmp/
 *.bak
 *.swp
 
+# ===== 构建产物（由 Jenkins 每次构建重新生成，不入库）=====
+# version.json 会在 Jenkins 部署前被重写，追踪它会导致工作区永远处于脏状态。
+# 仓库里保留一份模板 frontend/version.json.template 作为兜底。
+frontend/version.json
+
 # ===== WorkBuddy 本地数据（不提交到仓库）=====
 .workbuddy/
 .jenkins/

@@ -41,7 +41,7 @@
         .btn-secondary:hover { background: #1a4a7a; }
         .result {
             background: #0d1117;
-            border: 1px solid #30363d;
+            border: 1px solid rgba(48,54,61,1);
             border-radius: 8px;
             padding: 15px;
             margin-top: 15px;
@@ -89,12 +89,166 @@
         .badge-b { background: rgba(255,105,180,0.2); color: #ff69b4; }
         .clear { margin-left: 10px; }
         .tip { color: #888; font-size: 12px; margin-top: 10px; }
+
+        /* ===== 部署信息面板 ===== */
+        .build-card {
+            background: linear-gradient(135deg, rgba(88,214,141,0.08) 0%, rgba(15,52,96,0.25) 100%);
+            border: 1px solid rgba(88,214,141,0.25);
+        }
+        .build-card h2 { color: #58d68d; display: flex; align-items: center; gap: 10px; }
+        .build-card h2 .ci-icon { font-size: 1.1em; }
+        .build-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 18px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .version-tag {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 8px;
+            background: rgba(88,214,141,0.12);
+            border: 1px solid rgba(88,214,141,0.35);
+            color: #58d68d;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-family: 'Consolas', monospace;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .version-tag .commit {
+            font-size: 12px;
+            opacity: 0.75;
+            font-weight: normal;
+        }
+        .build-status {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            color: #888;
+        }
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #888;
+            flex-shrink: 0;
+        }
+        .dot.ok { background: #58d68d; box-shadow: 0 0 8px rgba(88,214,141,0.7); }
+        .dot.err { background: #e94560; box-shadow: 0 0 8px rgba(233,69,96,0.7); }
+        .dot.load { background: #f39c12; animation: pulse 1.2s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        .build-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 12px;
+        }
+        .build-item {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 12px 14px;
+        }
+        .build-item .k {
+            font-size: 11px;
+            color: #777;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        .build-item .v {
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: #e0e0e0;
+            word-break: break-all;
+        }
+        .build-item .v.green { color: #58d68d; }
+        .build-item .v.blue { color: #5dade2; }
+        .build-item .v.pink { color: #ff69b4; }
+        .build-note {
+            margin-top: 14px;
+            font-size: 12px;
+            color: #777;
+            line-height: 1.7;
+        }
+        .build-note code {
+            background: rgba(0,0,0,0.35);
+            padding: 1px 6px;
+            border-radius: 4px;
+            color: #5dade2;
+            font-family: 'Consolas', monospace;
+        }
+        .reload-btn {
+            background: transparent;
+            border: 1px solid rgba(88,214,141,0.35);
+            color: #58d68d;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        .reload-btn:hover { background: rgba(88,214,141,0.15); }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>前后端分离 - Nginx 负载均衡演示</h1>
     <p class="subtitle">前端静态文件由 Nginx 直接提供 | 后端 API 由 Nginx 负载均衡到两台服务器</p>
+
+    <!-- ===== 部署信息面板：验证 CI/CD 流水线 ===== -->
+    <div class="card build-card">
+        <h2>
+            <span class="ci-icon">&#9889;</span>部署信息
+            <button class="reload-btn" onclick="loadBuildInfo()">刷新</button>
+        </h2>
+        <div class="build-head">
+            <div class="version-tag">
+                <span id="bVersion">载入中...</span>
+                <span class="commit" id="bCommit"></span>
+            </div>
+            <div class="build-status">
+                <span class="dot load" id="bDot"></span>
+                <span id="bStatus">正在读取 version.json...</span>
+            </div>
+        </div>
+        <div class="build-grid">
+            <div class="build-item">
+                <div class="k">版本号</div>
+                <div class="v green" id="bVersionFull">-</div>
+            </div>
+            <div class="build-item">
+                <div class="k">Git Commit</div>
+                <div class="v blue" id="bCommitFull">-</div>
+            </div>
+            <div class="build-item">
+                <div class="k">分支</div>
+                <div class="v pink" id="bBranch">-</div>
+            </div>
+            <div class="build-item">
+                <div class="k">构建号</div>
+                <div class="v" id="bBuildNo">-</div>
+            </div>
+            <div class="build-item">
+                <div class="k">构建时间</div>
+                <div class="v" id="bBuildTime">-</div>
+            </div>
+            <div class="build-item">
+                <div class="k">构建者</div>
+                <div class="v" id="bBuiltBy">-</div>
+            </div>
+        </div>
+        <div class="build-note">
+            这个面板的数据来自部署时由 Jenkins 写入的 <code>version.json</code>。
+            改完代码 <code>git push</code> 后，Jenkins 会重新构建部署，这里的版本号和 Commit 就会变化。
+            <br>
+            后端一致性：<span id="bBackend">检测中...</span>
+        </div>
+    </div>
 
     <div class="card">
         <h2>1. API 请求测试</h2>
@@ -133,6 +287,66 @@
 
 <script>
     let countA = 0, countB = 0;
+
+    // ===== 读取部署信息 =====
+    async function loadBuildInfo() {
+        const dot = document.getElementById('bDot');
+        const status = document.getElementById('bStatus');
+        dot.className = 'dot load';
+        status.textContent = '正在读取 version.json...';
+
+        let frontVersion = null;
+        try {
+            // 加时间戳绕开浏览器缓存，确保看到的是最新一次部署
+            const res = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const v = await res.json();
+            frontVersion = v.version;
+
+            document.getElementById('bVersion').textContent = v.version || 'unknown';
+            document.getElementById('bCommit').textContent = v.shortCommit || '';
+            document.getElementById('bVersionFull').textContent = v.version || '-';
+            document.getElementById('bCommitFull').textContent = v.commit || '-';
+            document.getElementById('bBranch').textContent = v.branch || '-';
+            document.getElementById('bBuildNo').textContent = v.buildNumber || '-';
+            document.getElementById('bBuildTime').textContent = v.buildTime || '-';
+            document.getElementById('bBuiltBy').textContent = v.builtBy || '-';
+
+            dot.className = 'dot ok';
+            status.textContent = '部署成功，当前线上版本如上';
+        } catch (err) {
+            dot.className = 'dot err';
+            status.textContent = '读取失败: ' + err.message;
+        }
+
+        await checkBackendVersion(frontVersion);
+    }
+
+    // 校验后端返回的版本与前端是否一致（连续请求可看到两台服务器都响应）
+    async function checkBackendVersion(frontVersion) {
+        const el = document.getElementById('bBackend');
+        try {
+            const servers = new Set();
+            let backVersion = null;
+            for (let i = 0; i < 4; i++) {
+                const res = await fetch('/api/version?t=' + Date.now(), { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const d = await res.json();
+                servers.add(d.server);
+                if (!backVersion) backVersion = d.data && d.data.version;
+            }
+            const list = [...servers].join(' / ');
+            if (frontVersion && backVersion && frontVersion !== backVersion) {
+                el.innerHTML = '<span style="color:#e94560">不一致！前端 ' + frontVersion +
+                    ' / 后端 ' + backVersion + '</span>';
+            } else {
+                el.innerHTML = '<span style="color:#58d68d">' + (backVersion || '未知') +
+                    '</span>（' + list + '，前后端版本一致）';
+            }
+        } catch (err) {
+            el.innerHTML = '<span style="color:#e94560">检测失败: ' + err.message + '</span>';
+        }
+    }
 
     async function callApi(endpoint) {
         const resultDiv = document.getElementById('result');
@@ -196,6 +410,9 @@
     function clearResult() {
         document.getElementById('result').textContent = '已清空，点击按钮重新请求...';
     }
+
+    // 页面加载时读取部署信息
+    loadBuildInfo();
 </script>
 </body>
 </html>

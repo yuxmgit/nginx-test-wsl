@@ -179,6 +179,7 @@ git push -u origin main
 - [附录 A：完整命令速查](#附录-a完整命令速查)
 - [附录 A-1：最短路径行动清单](#附录-a-1最短路径行动清单照着做就行)
 - [附录 B：常见报错对照表](#附录-b常见报错对照表)
+- [附录 B：部署脚本行为说明](#附录-b部署脚本行为说明)
 
 ---
 
@@ -188,10 +189,12 @@ git push -u origin main
 |---|---|
 | `Jenkinsfile` | 流水线定义，Jenkins 从仓库根目录读取 |
 | `deploy/ci-deploy.sh` | 无人值守部署 + 健康检查 + 自动回滚 |
+| `deploy/gen-version.sh` | 生成 `version.json`，把构建信息注入前端 |
 | `deploy/jenkins-setup.sh` | Jenkins 一键安装 + 部署目录 ACL + 受限 sudo + SSH 密钥 |
 | `deploy/git-proxy-check.sh` | GitHub 连通性诊断 + 代理自动配置 |
 | `deploy/CI-CD部署指南.md` | 本文档 |
-| `.gitignore` | 排除 nginx 二进制、日志、密钥、`.workbuddy/` |
+| `frontend/version.json.template` | 版本信息模板（手动部署时兜底用） |
+| `.gitignore` | 排除 nginx 二进制、日志、密钥、`.workbuddy/`、构建产物 |
 | `.gitattributes` | 统一换行符为 LF（WSL 执行 .sh 的前提） |
 
 ---
@@ -940,7 +943,18 @@ environment {
 
 ## 附录 B：部署脚本行为说明
 
-`deploy/ci-deploy.sh` 的 5 个阶段：
+### B.1 Jenkins 流水线的 6 个阶段
+
+| # | 阶段 | 动作 | 失败处理 |
+|---|---|---|---|
+| 1 | 拉取代码 | 从 GitHub checkout 当前分支 | 立即退出 |
+| 2 | 环境检查 | 校验 Node / Nginx / 端口 / 部署目录权限 | 立即退出 |
+| 3 | 部署前检查 | `node --check` 语法预检 + 关键文件存在性 | 立即退出（**线上完全不受影响**） |
+| 4 | 生成版本信息 | 调 `gen-version.sh` 写 `frontend/version.json` | 立即退出 |
+| 5 | 执行部署 | 调 `ci-deploy.sh`（备份→同步→重启→健康检查） | **失败自动回滚** |
+| 6 | 冒烟测试 | 首页 + 3 个接口 + version.json 全 200，并校验前后端版本一致 | 立即退出 |
+
+### B.2 `deploy/ci-deploy.sh` 的 5 个阶段
 
 | 阶段 | 动作 | 失败处理 |
 |---|---|---|
@@ -951,7 +965,7 @@ environment {
 | 4 重启 | restart api-server1/2，`nginx -t` 通过才 reload | nginx -t 失败则不重载并退出 |
 | 5 健康检查 | 4001/4002/nginx 各请求一次，全 200 才算成功 | **失败自动回滚**并退出码非 0 |
 
-### 环境变量
+### B.3 环境变量
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
@@ -959,6 +973,43 @@ environment {
 | `SKIP_RESTART` | 0 | 设为 1 只同步不重启（用于预热） |
 | `HEALTH_RETRIES` | 10 | 健康检查重试次数 |
 | `RUN_USER` | 当前用户 | systemd service 的 User= |
+
+### B.4 版本信息机制
+
+**为什么需要它？** 没有版本信息时，"部署成功"只是一句日志，你无法确认线上跑的到底是哪次构建。
+加上之后，页面上直接显示版本号和 Commit，一眼就能验证 CI/CD 链路是否真的跑通。
+
+**数据流**：
+
+```
+Jenkins 阶段 4
+  └─ gen-version.sh → frontend/version.json
+       { version, commit, shortCommit, branch, buildTime, buildNumber, builtBy }
+            │
+            └─ ci-deploy.sh 用 rsync 同步到 ~/nginx-project/frontend/
+                 │
+                 ├─ 前端 index.html fetch('/version.json') → 显示在部署信息面板
+                 └─ 后端 /api/version 读同一文件 → 页面比对前后端版本是否一致
+```
+
+**三个容易踩的坑**：
+
+1. **`version.json` 不能入库**。Jenkins 每次构建都会重写它，一旦被 git 跟踪，
+   工作区就会永远处于脏状态，`git status` 全是噪音。已在 `.gitignore` 排除。
+2. **`rsync --delete` 会删掉目标端多余的文件**。如果源目录没有 `version.json`，
+   目标端已有的会被一并删除，页面直接 404。所以 `ci-deploy.sh` 同步前会检查，
+   缺失时用 `frontend/version.json.template` 补一个占位文件。
+3. **手动部署没有构建信息**。`deploy.sh` 同样会用模板兜底，页面显示
+   `v1.0.0-dev` / `buildNumber: local`，一眼就能看出这不是 Jenkins 部署的。
+
+**验证版本信息是否生效**：
+
+```bash
+# WSL 里
+curl -s http://localhost/version.json | python3 -m json.tool
+curl -s http://localhost/api/version | python3 -m json.tool
+# 两者 version 字段应完全一致
+```
 
 ---
 

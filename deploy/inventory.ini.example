@@ -1,0 +1,38 @@
+#
+# 多机部署主机清单（inventory）
+#
+# 复制本文件为 inventory.ini 后按实际情况修改。
+# 格式： ini 风格，[节名] 为主机 ID，后续 key=value 为属性。
+#
+# 字段说明
+#   host             必填。目标机 IP 或域名，Jenkins（WSL）必须能 SSH 直连
+#                    也支持 wsl:<发行版名> 语法（如 wsl:Ubuntu-24.04），
+#                    部署时自动调用 wsl.exe 解析真实 IP —— WSL 是 NAT 网络，
+#                    发行版 IP 每次重启都会变，写死 IP 必然失效。
+#   ssh_user         必填。用于 rsync/ssh 的登录用户，建议专用为 deploy
+#   deploy_dir       必填。代码落地目录，需与目标机 systemd unit 的 WorkingDirectory 一致
+#   run_user         必填。systemd unit 里 User= 的运行用户（文件属主）
+#   role             full（默认，nginx+双后端全量）| web（只放前端+nginx）| app（只放后端）
+#   upstream         web 角色的 nginx upstream 后端地址，逗号分隔。留空则用 127.0.0.1:4001,127.0.0.1:4002
+#   health_port      健康检查访问该机 nginx 的端口，默认 80
+#   enabled          true（默认）| false（跳过该机，便于灰度）
+#
+# 示例
+#   [web-01]
+#   host         = 192.168.1.101
+#   ssh_user     = deploy
+#   deploy_dir   = /srv/nginx-project
+#   run_user     = appuser
+#   role         = full
+#   health_port  = 80
+#   enabled      = true
+#
+
+[web-01]
+host        = 192.168.1.101
+ssh_user    = deploy
+deploy_dir  = /srv/nginx-project
+run_user    = appuser
+role        = full
+health_port = 80
+enabled     = true
